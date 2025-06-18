@@ -3,22 +3,47 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "npm run compile:electron && concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js\"",
+    "electron:build": "npm run build && npm run compile:electron && electron-builder",
+    "electron:serve": "npm run compile:electron && concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron dist-electron/main.js\"",
+    "compile:electron": "./node_modules/.bin/tsc -p electron/tsconfig.json",
+    "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "vite-plugin-electron": "^0.29.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.2.3",
+    "@vitejs/plugin-vue": "^5.2.4",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "electron": "^36.4.0",
     "electron-builder": "^26.0.12",
     "electron-packager": "^17.1.2",
+    "typescript": "^5.8.3",
     "vite": "^6.3.5",
+    "vite-plugin-typescript": "^1.0.4",
+    "vue-tsc": "^2.0.0",
     "wait-on": "^8.0.3"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "build": {
+    "appId": "com.example.vue-electron-vite-project",
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
