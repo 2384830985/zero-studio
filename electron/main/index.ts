@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
+import { log } from 'node:console'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -58,10 +59,12 @@ async function createWindow() {
   })
 
   if (VITE_DEV_SERVER_URL) { // #298
+    log('VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
     win.loadURL(VITE_DEV_SERVER_URL)
     // Open devTool if the app is not packaged
     win.webContents.openDevTools()
   } else {
+    log('NO VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
     win.loadFile(indexHtml)
   }
 
@@ -118,3 +121,42 @@ ipcMain.handle('open-win', (_, arg) => {
     childWindow.loadFile(indexHtml, { hash: arg })
   }
 })
+
+// --------- Debug helpers for development ---------
+if (process.env.NODE_ENV === 'development') {
+  // 处理来自渲染进程的调试日志
+  ipcMain.on('debug-log', (event, ...args) => {
+    console.log('[Renderer Debug]:', ...args)
+  })
+
+  // 处理来自渲染进程的错误报告
+  ipcMain.on('debug-error', (event, message, stack) => {
+    console.error('[Renderer Error]:', message)
+    if (stack) {
+      console.error('Stack trace:', stack)
+    }
+  })
+
+  // 添加一些有用的调试 IPC 处理器
+  ipcMain.handle('get-app-info', () => {
+    return {
+      version: app.getVersion(),
+      name: app.getName(),
+      path: app.getAppPath(),
+      userData: app.getPath('userData'),
+      temp: app.getPath('temp'),
+      desktop: app.getPath('desktop'),
+      documents: app.getPath('documents'),
+      downloads: app.getPath('downloads'),
+    }
+  })
+
+  ipcMain.handle('get-system-info', () => {
+    return {
+      platform: process.platform,
+      arch: process.arch,
+      versions: process.versions,
+      env: process.env.NODE_ENV,
+    }
+  })
+}

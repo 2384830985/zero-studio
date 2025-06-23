@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
+import ElectronDebugger from './components/ElectronDebugger.vue'
 import { ref, onMounted } from 'vue'
 
 // TypeScript 示例：定义响应式数据
 const appTitle = ref<string>('Big Brother Studio')
 const isElectron = ref<boolean>(false)
+const showDebugger = ref<boolean>(false)
 
 // 检查是否在 Electron 环境中运行
 onMounted(() => {
   isElectron.value = !!(window as any).electronAPI
+  // 在开发环境中默认显示调试器
+  showDebugger.value = import.meta.env.DEV && isElectron.value
 })
 </script>
 
@@ -17,6 +21,16 @@ onMounted(() => {
     <h1>{{ appTitle }}</h1>
     <p v-if="isElectron" class="electron-status">✅ 运行在 Electron 环境中</p>
     <p v-else class="electron-status">🌐 运行在浏览器环境中</p>
+
+    <!-- 调试器切换按钮 -->
+    <div v-if="isElectron" class="debug-controls">
+      <button @click="showDebugger = !showDebugger" class="debug-toggle">
+        {{ showDebugger ? '隐藏调试器' : '显示调试器' }}
+      </button>
+    </div>
+
+    <!-- Electron 调试器 -->
+    <ElectronDebugger v-if="showDebugger" />
 
     <div class="logos">
       <a href="https://vite.dev" target="_blank">
@@ -75,5 +89,23 @@ h1 {
 
 .logo.electron:hover {
   filter: drop-shadow(0 0 2em #9feaf9aa);
+}
+
+.debug-controls {
+  margin: 1rem 0;
+}
+
+.debug-toggle {
+  padding: 0.5rem 1rem;
+  background-color: #007acc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.debug-toggle:hover {
+  background-color: #005a9e;
 }
 </style>

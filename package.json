@@ -3,20 +3,27 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/main/index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "npm run compile:electron && concurrently --kill-others \"vite --port 5173\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js\"",
+    "dev:safe": "npm run compile:electron && vite --port 5173 & wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js",
+    "build": "vue-tsc --noEmit && vite build && electron-builder",
     "preview": "vite preview",
-    "electron:dev": "npm run compile:electron && concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js\"",
+    "electron:dev": "npm run dev",
     "electron:build": "npm run build && npm run compile:electron && electron-builder",
-    "electron:serve": "npm run compile:electron && concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron dist-electron/main.js\"",
+    "electron:serve": "npm run compile:electron && concurrently --kill-others \"vite --port 5173\" \"wait-on http://localhost:5173 && electron dist-electron/main.js\"",
     "compile:electron": "./node_modules/.bin/tsc -p electron/tsconfig.json",
+    "compile:electron:watch": "./node_modules/.bin/tsc -p electron/tsconfig.json --watch",
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
     "vite-plugin-electron": "^0.29.0",
     "vue": "^3.5.13"
+  },
+  "debug": {
+    "env": {
+      "VITE_DEV_SERVER_URL": "http://127.0.0.1:3344/"
+    }
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
@@ -28,11 +35,12 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vite-plugin-typescript": "^1.0.4",
+    "vite-plugin-electron-renderer": "^0.14.5",
     "vue-tsc": "^2.0.0",
     "wait-on": "^8.0.3"
   },
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": ">=22.12.0"
   },
   "build": {
     "appId": "com.example.vue-electron-vite-project",
