@@ -19,6 +19,7 @@
     "lint:check": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
     "lint:report": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --format json --output-file eslint-report.json",
     "sonar": "sonar-scanner",
+    "quality-check": "./scripts/quality-check.sh",
     "prepare": "husky"
   },
   "dependencies": {
