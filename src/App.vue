@@ -23,12 +23,28 @@ onMounted(() => {
 <template>
   <div>
     <h1>{{ appTitle }}</h1>
-    <p v-if="isElectron" class="electron-status">✅ 运行在 Electron 环境中</p>
-    <p v-else class="electron-status">🌐 运行在浏览器环境中</p>
+    <p
+      v-if="isElectron"
+      class="electron-status"
+    >
+      ✅ 运行在 Electron 环境中
+    </p>
+    <p
+      v-else
+      class="electron-status"
+    >
+      🌐 运行在浏览器环境中
+    </p>
 
     <!-- 调试器切换按钮 -->
-    <div v-if="isElectron" class="debug-controls">
-      <button @click="showDebugger = !showDebugger" class="debug-toggle">
+    <div
+      v-if="isElectron"
+      class="debug-controls"
+    >
+      <button
+        class="debug-toggle"
+        @click="showDebugger = !showDebugger"
+      >
         {{ showDebugger ? '隐藏调试器' : '显示调试器' }}
       </button>
     </div>
@@ -37,14 +53,35 @@ onMounted(() => {
     <ElectronDebugger v-if="showDebugger" />
 
     <div class="logos">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo" alt="Vite logo" />
+      <a
+        href="https://vite.dev"
+        target="_blank"
+      >
+        <img
+          src="/vite.svg"
+          class="logo"
+          alt="Vite logo"
+        >
       </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
+      <a
+        href="https://vuejs.org/"
+        target="_blank"
+      >
+        <img
+          src="./assets/vue.svg"
+          class="logo vue"
+          alt="Vue logo"
+        >
       </a>
-      <a href="https://www.electronjs.org/" target="_blank">
-        <img src="https://www.electronjs.org/assets/img/logo.svg" class="logo electron" alt="Electron logo" />
+      <a
+        href="https://www.electronjs.org/"
+        target="_blank"
+      >
+        <img
+          src="https://www.electronjs.org/assets/img/logo.svg"
+          class="logo electron"
+          alt="Electron logo"
+        >
       </a>
     </div>
 

@@ -4,46 +4,74 @@
 
     <div class="debug-section">
       <h3>环境信息</h3>
-      <button @click="getEnvironmentInfo">获取环境信息</button>
+      <button @click="getEnvironmentInfo">
+        获取环境信息
+      </button>
       <pre v-if="envInfo">{{ JSON.stringify(envInfo, null, 2) }}</pre>
     </div>
 
     <div class="debug-section">
       <h3>系统信息</h3>
-      <button @click="getSystemInfo">获取系统信息</button>
+      <button @click="getSystemInfo">
+        获取系统信息
+      </button>
       <pre v-if="systemInfo">{{ JSON.stringify(systemInfo, null, 2) }}</pre>
     </div>
 
     <div class="debug-section">
       <h3>应用信息</h3>
-      <button @click="getAppInfo">获取应用信息</button>
+      <button @click="getAppInfo">
+        获取应用信息
+      </button>
       <pre v-if="appInfo">{{ JSON.stringify(appInfo, null, 2) }}</pre>
     </div>
 
     <div class="debug-section">
       <h3>剪贴板操作</h3>
-      <input v-model="clipboardText" placeholder="输入要复制的文本" />
-      <button @click="writeToClipboard">写入剪贴板</button>
-      <button @click="readFromClipboard">读取剪贴板</button>
-      <p v-if="clipboardContent">剪贴板内容: {{ clipboardContent }}</p>
+      <input
+        v-model="clipboardText"
+        placeholder="输入要复制的文本"
+      >
+      <button @click="writeToClipboard">
+        写入剪贴板
+      </button>
+      <button @click="readFromClipboard">
+        读取剪贴板
+      </button>
+      <p v-if="clipboardContent">
+        剪贴板内容: {{ clipboardContent }}
+      </p>
     </div>
 
     <div class="debug-section">
       <h3>Shell 操作</h3>
-      <input v-model="urlToOpen" placeholder="输入要打开的 URL" />
-      <button @click="openExternalUrl">打开外部链接</button>
+      <input
+        v-model="urlToOpen"
+        placeholder="输入要打开的 URL"
+      >
+      <button @click="openExternalUrl">
+        打开外部链接
+      </button>
     </div>
 
     <div class="debug-section">
       <h3>调试日志</h3>
-      <button @click="testDebugLog">测试调试日志</button>
-      <button @click="testErrorReport">测试错误报告</button>
+      <button @click="testDebugLog">
+        测试调试日志
+      </button>
+      <button @click="testErrorReport">
+        测试错误报告
+      </button>
     </div>
 
     <div class="debug-section">
       <h3>IPC 通信测试</h3>
-      <button @click="testIPC">测试 IPC 通信</button>
-      <p v-if="ipcResult">IPC 结果: {{ ipcResult }}</p>
+      <button @click="testIPC">
+        测试 IPC 通信
+      </button>
+      <p v-if="ipcResult">
+        IPC 结果: {{ ipcResult }}
+      </p>
     </div>
   </div>
 </template>
