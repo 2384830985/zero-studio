@@ -17,6 +17,8 @@
     "type-check": "vue-tsc --noEmit",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "lint:check": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
+    "lint:report": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --format json --output-file eslint-report.json",
+    "sonar": "sonar-scanner",
     "prepare": "husky"
   },
   "dependencies": {
@@ -42,6 +44,7 @@
     "eslint-plugin-vue": "^9.33.0",
     "husky": "^8.0.3",
     "lint-staged": "^13.3.0",
+    "sonarqube-scanner": "^4.3.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vite-plugin-electron-renderer": "^0.14.5",
