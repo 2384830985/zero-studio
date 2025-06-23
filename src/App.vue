@@ -12,6 +12,7 @@ const showDebugger = ref<boolean>(false)
 onMounted(() => {
   isElectron.value = !!(window as any).electronAPI
   console.log('electronAPI', window.electronAPI)
+  console.log('electronAPI', window.electronAPI)
   // 在开发环境中默认显示调试器
   showDebugger.value = import.meta.env.DEV && isElectron.value
 })
