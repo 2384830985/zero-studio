@@ -42,6 +42,9 @@ build/
 .env.test.local
 .env.production.local
 
+# SonarCloud local config (contains sensitive tokens)
+.env.sonar
+
 # IDE
 .vscode/
 .idea/
