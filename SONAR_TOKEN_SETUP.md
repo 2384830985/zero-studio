@@ -4,7 +4,7 @@
 
 **绝对不要将 SonarCloud Token 直接写入代码或配置文件中！**
 
-你提供的密钥 `6968f766926e8defb63ba6517ba9a72b45c6dec0` 应该作为 **SONAR_TOKEN** 环境变量或 GitHub Secret 使用。
+你的 SonarCloud Token 应该作为 **SONAR_TOKEN** 环境变量或 GitHub Secret 使用。
 
 ## 正确的配置方式
 
@@ -17,7 +17,7 @@
 3. 点击 **New repository secret**
 4. 设置：
    - **Name**: `SONAR_TOKEN`
-   - **Secret**: `6968f766926e8defb63ba6517ba9a72b45c6dec0`
+   - **Secret**: `你的实际 SonarCloud Token`
 5. 点击 **Add secret**
 
 ### 2. 本地开发配置
@@ -26,17 +26,17 @@
 
 ```bash
 # 创建 .env.local 文件（已在 .gitignore 中）
-echo "SONAR_TOKEN=6968f766926e8defb63ba6517ba9a72b45c6dec0" > .env.local
+echo "SONAR_TOKEN=your-actual-sonar-token" > .env.local
 ```
 
 或者直接在终端中设置：
 
 ```bash
 # macOS/Linux
-export SONAR_TOKEN=6968f766926e8defb63ba6517ba9a72b45c6dec0
+export SONAR_TOKEN=your-actual-sonar-token
 
 # Windows
-set SONAR_TOKEN=6968f766926e8defb63ba6517ba9a72b45c6dec0
+set SONAR_TOKEN=your-actual-sonar-token
 ```
 
 ### 3. 本地运行 SonarCloud 分析
@@ -46,7 +46,7 @@ set SONAR_TOKEN=6968f766926e8defb63ba6517ba9a72b45c6dec0
 npm run sonar
 
 # 或者一次性设置并运行
-SONAR_TOKEN=6968f766926e8defb63ba6517ba9a72b45c6dec0 npm run sonar
+SONAR_TOKEN=your-actual-sonar-token npm run sonar
 ```
 
 ## 验证配置

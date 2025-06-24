@@ -27,7 +27,7 @@ fi
 
 # 提示用户输入 SONAR_TOKEN
 echo -e "${BLUE}请输入你的 SonarCloud Token:${NC}"
-echo -e "${YELLOW}(如果你有 Token: 6968f766926e8defb63ba6517ba9a72b45c6dec0)${NC}"
+echo -e "${YELLOW}(从 SonarCloud 获取的认证令牌)${NC}"
 read -p "SONAR_TOKEN: " SONAR_TOKEN
 
 if [ -z "$SONAR_TOKEN" ]; then
@@ -70,4 +70,4 @@ echo -e "  ${YELLOW}npm run quality-check${NC}  # 完整质量检查"
 echo -e "\n${YELLOW}📝 别忘了在 GitHub 仓库中设置 SONAR_TOKEN Secret:${NC}"
 echo -e "  1. 进入 GitHub 仓库 Settings"
 echo -e "  2. 选择 Secrets and variables → Actions"
-echo -e "  3. 添加 SONAR_TOKEN: $SONAR_TOKEN"
+echo -e "  3. 添加 SONAR_TOKEN 并粘贴你的令牌"
