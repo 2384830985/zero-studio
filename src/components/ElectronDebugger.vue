@@ -167,7 +167,7 @@ const testIPC = () => {
     window.ipcRenderer.send('main-process-message', '来自渲染进程的消息')
 
     // 监听主进程的回复
-    window.ipcRenderer.on('main-process-message', (event, message) => {
+    window.ipcRenderer.on('main-process-message', (_event, message) => {
       ipcResult.value = `收到主进程消息: ${message}`
     })
   }

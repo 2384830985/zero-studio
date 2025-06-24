@@ -124,12 +124,12 @@ ipcMain.handle('open-win', (_, arg) => {
 // --------- Debug helpers for development ---------
 if (process.env.NODE_ENV === 'development') {
   // 处理来自渲染进程的调试日志
-  ipcMain.on('debug-log', (event, ...args) => {
+  ipcMain.on('debug-log', (_event, ...args) => {
     console.log('[Renderer Debug]:', ...args)
   })
 
   // 处理来自渲染进程的错误报告
-  ipcMain.on('debug-error', (event, message, stack) => {
+  ipcMain.on('debug-error', (_event, message, stack) => {
     console.error('[Renderer Error]:', message)
     if (stack) {
       console.error('Stack trace:', stack)
