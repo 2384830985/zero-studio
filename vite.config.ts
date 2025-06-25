@@ -13,6 +13,12 @@ export default defineConfig(({ command }) => {
   const isBuild = command === 'build'
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
 
+  // 设置环境变量确保 Electron 能正确启动
+  if (isServe) {
+    process.env.ELECTRON = '1'
+    process.env.NODE_ENV = 'development'
+  }
+
   return {
     plugins: [
       vue(),
@@ -20,17 +26,12 @@ export default defineConfig(({ command }) => {
         main: {
           // Shortcut of `build.lib.entry`
           entry: 'electron/main/index.ts',
-          onstart({ startup }) {
+          onstart(args) {
             if (process.env.VSCODE_DEBUG) {
               console.log(/* For `.vscode/.debug.script.mjs` */'[startup] Electron App')
             } else {
-              // 在开发模式下自动启动 Electron
-              if (isServe) {
-                console.log('🚀 Starting Electron in development mode...')
-                startup(['--inspect=5858', '--remote-debugging-port=9222'])
-              } else {
-                startup()
-              }
+              console.log('🚀 Starting Electron in development mode...')
+              args.startup(['--inspect=5858', '--remote-debugging-port=9222'])
             }
           },
           vite: {

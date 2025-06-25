@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "cross-env NODE_ENV=development ELECTRON=1 vite",
     "dev:manual": "npm run compile:electron && concurrently --kill-others \"vite --port 5173\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js\"",
     "build": "vue-tsc --noEmit && vite build && electron-builder",
     "preview": "vite preview",
@@ -21,6 +21,7 @@
     "sonar": "sonar-scanner",
     "sonar:setup": "./scripts/setup-sonar-local.sh",
     "quality-check": "./scripts/quality-check.sh",
+    "test:dev": "./scripts/test-dev.sh",
     "prepare": "husky"
   },
   "dependencies": {

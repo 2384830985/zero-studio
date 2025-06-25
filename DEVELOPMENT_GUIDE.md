@@ -8,7 +8,8 @@
 npm run dev
 ```
 
-这个命令会：
+这个命令 (`cross-env NODE_ENV=development ELECTRON=1 vite`) 会：
+- 设置开发环境变量 (NODE_ENV=development, ELECTRON=1)
 - 启动 Vite 开发服务器 (端口 5173)
 - 自动编译 Electron 主进程和预加载脚本
 - 启动 Electron 应用
@@ -21,6 +22,7 @@ npm run dev
 npm run dev              # 启动完整开发环境 (推荐)
 
 # 🔧 备用和调试命令
+npm run test:dev         # 测试开发环境准备情况
 npm run dev:manual       # 手动启动方式 (如果自动方式有问题)
 npm run electron:dev     # 等同于 npm run dev
 npm run electron:serve   # 使用 concurrently 的启动方式
@@ -108,6 +110,9 @@ big-brother-studio/
 
 2. **Electron 启动失败**
    ```bash
+   # 首先运行测试脚本检查环境
+   npm run test:dev
+   
    # 使用手动启动方式
    npm run dev:manual
    
