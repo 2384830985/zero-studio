@@ -274,8 +274,10 @@ const speakResult = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
   background-color: #ffffff;
   padding: 24px;
+  box-sizing: border-box;
 }
 
 .translate-header {
@@ -329,6 +331,7 @@ const speakResult = () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
+  min-height: 0; /* 确保网格可以收缩 */
 }
 
 .input-section, .output-section {
@@ -374,7 +377,7 @@ const speakResult = () => {
 .translate-output {
   flex: 1;
   padding: 16px;
-  min-height: 200px;
+  min-height: 150px;
   display: flex;
   align-items: center;
   justify-content: center;

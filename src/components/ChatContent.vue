@@ -114,16 +114,19 @@ const sendMessage = () => {
 .chat-content-container {
   display: flex;
   height: 100%;
+  width: 100%;
   background-color: #f5f5f5;
 }
 
 /* 中间聊天列表 */
 .chat-list {
   width: 280px;
+  min-width: 280px; /* 确保最小宽度 */
   background-color: #ffffff;
   border-right: 1px solid #e8e8e8;
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* 防止内容溢出 */
 }
 
 .chat-tabs {
@@ -226,6 +229,8 @@ const sendMessage = () => {
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
+  min-width: 0; /* 允许收缩 */
+  overflow: hidden; /* 防止溢出 */
 }
 
 .chat-content {
@@ -244,8 +249,9 @@ const sendMessage = () => {
 
 /* 输入区域 */
 .input-area {
-  padding: 16px 24px 24px;
+  padding: 16px 24px 16px;
   border-top: 1px solid #f0f0f0;
+  flex-shrink: 0; /* 防止输入区域被压缩 */
 }
 
 .input-container {
