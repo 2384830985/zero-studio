@@ -24,7 +24,13 @@ export default defineConfig(({ command }) => {
             if (process.env.VSCODE_DEBUG) {
               console.log(/* For `.vscode/.debug.script.mjs` */'[startup] Electron App')
             } else {
-              startup()
+              // 在开发模式下自动启动 Electron
+              if (isServe) {
+                console.log('🚀 Starting Electron in development mode...')
+                startup(['--inspect=5858', '--remote-debugging-port=9222'])
+              } else {
+                startup()
+              }
             }
           },
           vite: {
@@ -76,6 +82,12 @@ export default defineConfig(({ command }) => {
       port: 5173,
       host: '127.0.0.1',
       strictPort: false,
+      // 在开发模式下启用热重载
+      hmr: {
+        port: 5174,
+      },
+      // 自动打开浏览器（仅在非 Electron 环境下）
+      open: !process.env.ELECTRON,
     },
     clearScreen: false,
     base: './',

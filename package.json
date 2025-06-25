@@ -5,8 +5,8 @@
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
-    "dev": "npm run compile:electron && concurrently --kill-others \"vite --port 5173\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js\"",
-    "dev:safe": "npm run compile:electron && vite --port 5173 & wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js",
+    "dev": "vite",
+    "dev:manual": "npm run compile:electron && concurrently --kill-others \"vite --port 5173\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron dist-electron/main.js\"",
     "build": "vue-tsc --noEmit && vite build && electron-builder",
     "preview": "vite preview",
     "electron:dev": "npm run dev",
