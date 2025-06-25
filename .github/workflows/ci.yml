@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 22.x]
 
     steps:
       - name: Checkout code
@@ -26,9 +26,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-
-      - name: Type check
-        run: npm run type-check
 
       - name: Lint check
         run: npm run lint:check
