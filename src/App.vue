@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import ChatInterface from './components/ChatInterface.vue'
+// 路由视图，不需要导入具体组件
 </script>
 
 <template>
-  <ChatInterface />
+  <router-view />
 </template>
