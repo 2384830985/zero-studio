@@ -45,6 +45,8 @@
         <div class="welcome-message">
           你好，我是默认助手，你可以立刻开始跟我聊天
         </div>
+        <!-- Tailwind 测试组件 -->
+        <TailwindTest />
       </div>
 
       <!-- 输入区域 -->
@@ -99,6 +101,7 @@ import {
   TranslationOutlined,
   ArrowUpOutlined,
 } from '@ant-design/icons-vue'
+import TailwindTest from './TailwindTest.vue'
 
 const inputMessage = ref('')
 
