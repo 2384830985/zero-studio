@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Layout from '../components/Layout.vue'
-import ChatContent from '../components/ChatContent.vue'
-import TranslateContent from '../components/TranslateContent.vue'
+import MainLayout from '../layouts/MainLayout.vue'
+import ChatView from '../views/chat/ChatView.vue'
+import TranslateView from '../views/translate/TranslateView.vue'
 
 const routes = [
   {
@@ -10,17 +10,17 @@ const routes = [
   },
   {
     path: '/',
-    component: Layout,
+    component: MainLayout,
     children: [
       {
         path: 'chat',
         name: 'Chat',
-        component: ChatContent,
+        component: ChatView,
       },
       {
         path: 'translate',
         name: 'Translate',
-        component: TranslateContent,
+        component: TranslateView,
       },
     ],
   },

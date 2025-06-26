@@ -1,15 +1,17 @@
 <template>
-  <div class="translate-content-container">
+  <div class="flex flex-col h-full w-full bg-white p-6 box-border">
     <!-- 顶部标题 -->
-    <div class="translate-header">
-      <h1>翻译</h1>
+    <div class="mb-6">
+      <h1 class="text-2xl font-semibold text-gray-800 m-0">
+        翻译
+      </h1>
     </div>
 
     <!-- 翻译控制区域 -->
-    <div class="translate-controls">
+    <div class="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-lg">
       <!-- 语言选择区域 -->
-      <div class="language-selector">
-        <div class="language-item">
+      <div class="flex items-center gap-4">
+        <div>
           <a-select
             v-model:value="sourceLanguage"
             style="width: 120px"
@@ -42,13 +44,13 @@
         </div>
 
         <div
-          class="swap-button"
+          class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 cursor-pointer transition-all hover:bg-blue-50 hover:text-blue-500"
           @click="swapLanguages"
         >
           <SwapOutlined />
         </div>
 
-        <div class="language-item">
+        <div>
           <a-select
             v-model:value="targetLanguage"
             style="width: 120px"
@@ -79,7 +81,7 @@
       </div>
 
       <!-- 翻译按钮 -->
-      <div class="translate-button">
+      <div>
         <a-button
           type="primary"
           :loading="isTranslating"
@@ -91,21 +93,21 @@
     </div>
 
     <!-- 翻译内容区域 -->
-    <div class="translate-content">
+    <div class="flex-1 grid grid-cols-2 gap-6 min-h-0">
       <!-- 输入区域 -->
-      <div class="input-section">
+      <div class="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
         <a-textarea
           v-model:value="inputText"
           placeholder="输入文本进行翻译"
           :rows="8"
-          class="translate-input"
+          class="!border-none resize-none p-4 text-sm leading-relaxed"
           @input="onInputChange"
         />
-        <div class="input-actions">
-          <div class="char-count">
+        <div class="flex justify-between items-center px-4 py-2 bg-gray-50 border-t border-gray-200">
+          <div class="text-xs text-gray-400">
             {{ inputText.length }}/5000
           </div>
-          <div class="action-buttons">
+          <div class="flex gap-2">
             <a-button
               type="text"
               size="small"
@@ -125,46 +127,49 @@
       </div>
 
       <!-- 输出区域 -->
-      <div class="output-section">
-        <div class="translate-output">
+      <div class="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
+        <div class="flex-1 p-4 min-h-[150px] flex items-center justify-center">
           <div
             v-if="!outputText && !isTranslating"
-            class="placeholder"
+            class="text-gray-300 text-base"
           >
             翻译
           </div>
           <div
             v-else-if="isTranslating"
-            class="loading"
+            class="flex items-center gap-2 text-gray-600"
           >
             <a-spin />
             <span>翻译中...</span>
           </div>
           <div
             v-else
-            class="result-text"
+            class="text-sm leading-relaxed text-gray-800 w-full text-left"
           >
             {{ outputText }}
           </div>
         </div>
         <div
           v-if="outputText"
-          class="output-actions"
+          class="flex justify-between items-center px-4 py-2 bg-gray-50 border-t border-gray-200"
         >
-          <a-button
-            type="text"
-            size="small"
-            @click="copyResult"
-          >
-            <CopyOutlined />
-          </a-button>
-          <a-button
-            type="text"
-            size="small"
-            @click="speakResult"
-          >
-            <SoundOutlined />
-          </a-button>
+          <div />
+          <div class="flex gap-2">
+            <a-button
+              type="text"
+              size="small"
+              @click="copyResult"
+            >
+              <CopyOutlined />
+            </a-button>
+            <a-button
+              type="text"
+              size="small"
+              @click="speakResult"
+            >
+              <SoundOutlined />
+            </a-button>
+          </div>
         </div>
       </div>
     </div>
@@ -268,138 +273,3 @@ const speakResult = () => {
   }
 }
 </script>
-
-<style scoped>
-.translate-content-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  background-color: #ffffff;
-  padding: 24px;
-  box-sizing: border-box;
-}
-
-.translate-header {
-  margin-bottom: 24px;
-}
-
-.translate-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-/* 翻译控制区域 */
-.translate-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  padding: 16px;
-  background-color: #fafafa;
-  border-radius: 8px;
-}
-
-.language-selector {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.swap-button {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background-color: #f0f0f0;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.swap-button:hover {
-  background-color: #e6f7ff;
-  color: #1890ff;
-}
-
-/* 翻译内容区域 */
-.translate-content {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  min-height: 0; /* 确保网格可以收缩 */
-}
-
-.input-section, .output-section {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.translate-input {
-  border: none;
-  resize: none;
-  padding: 16px;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.translate-input:focus {
-  box-shadow: none;
-  border-color: #e8e8e8;
-}
-
-.input-actions, .output-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-  background-color: #fafafa;
-  border-top: 1px solid #e8e8e8;
-}
-
-.char-count {
-  font-size: 12px;
-  color: #999;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.translate-output {
-  flex: 1;
-  padding: 16px;
-  min-height: 150px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.placeholder {
-  color: #ccc;
-  font-size: 16px;
-}
-
-.loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #666;
-}
-
-.result-text {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333;
-  width: 100%;
-  text-align: left;
-}
-</style>
