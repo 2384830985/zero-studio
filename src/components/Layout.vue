@@ -16,8 +16,8 @@
 
       <!-- 导航菜单 -->
       <div class="nav-menu">
-        <div 
-          class="nav-item" 
+        <div
+          class="nav-item"
           :class="{ active: $route.path === '/chat' }"
           title="聊天"
           @click="$router.push('/chat')"
@@ -36,8 +36,8 @@
         >
           <AppstoreOutlined />
         </div>
-        <div 
-          class="nav-item" 
+        <div
+          class="nav-item"
           :class="{ active: $route.path === '/translate' }"
           title="翻译"
           @click="$router.push('/translate')"
@@ -112,8 +112,8 @@ import {
 .floating-sidebar {
   position: fixed;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
   width: 60px;
   background-color: rgba(255, 255, 255, 0.95);
   display: flex;
@@ -189,6 +189,6 @@ import {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-left: 92px; /* 60px sidebar width + 16px left margin + 16px right spacing */
+  padding-left: 60px; /* 60px sidebar width + 16px left margin + 16px right spacing */
 }
 </style>
