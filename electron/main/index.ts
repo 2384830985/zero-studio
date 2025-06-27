@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
 import { log } from 'node:console'
+import { SSEServer } from './sse-server'
 createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -39,6 +40,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
+let sseServer: SSEServer | null = null
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
@@ -80,10 +82,36 @@ async function createWindow() {
   // win.webContents.on('will-navigate', (event, url) => { }) #344
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(async () => {
+  await createWindow()
 
-app.on('window-all-closed', () => {
+  // 启动 SSE 服务器
+  try {
+    sseServer = new SSEServer(3001)
+    await sseServer.start()
+    console.log('SSE Server started successfully')
+    console.log('SSE Server started successfully')
+    console.log('SSE Server started successfully')
+    console.log('SSE Server started successfully')
+  } catch (error) {
+    console.error('Failed to start SSE Server:', error)
+  }
+})
+
+app.on('window-all-closed', async () => {
   win = null
+
+  // 停止 SSE 服务器
+  if (sseServer) {
+    try {
+      await sseServer.stop()
+      console.log('SSE Server stopped')
+    } catch (error) {
+      console.error('Error stopping SSE Server:', error)
+    }
+    sseServer = null
+  }
+
   if (process.platform !== 'darwin') {app.quit()}
 })
 
@@ -157,5 +185,13 @@ if (process.env.NODE_ENV === 'development') {
       versions: process.versions,
       env: process.env.NODE_ENV,
     }
+  })
+
+  // SSE 服务器相关的 IPC 处理器
+  ipcMain.handle('get-sse-server-stats', () => {
+    if (sseServer) {
+      return sseServer.getStats()
+    }
+    return null
   })
 }
