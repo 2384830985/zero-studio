@@ -30,7 +30,7 @@
             1
           </div>
         </div>
-        
+
         <div class="flex items-center p-3 text-gray-600 cursor-pointer rounded-lg transition-all hover:bg-gray-50">
           <PlusOutlined />
           <span class="ml-2 text-sm">添加助手</span>
@@ -71,9 +71,9 @@
         >
           <div :class="['flex', message.role === 'user' ? 'justify-end' : 'justify-start']">
             <div
-              :class="['max-w-[70%] rounded-2xl px-4 py-3', 
-                       message.role === 'user' 
-                         ? 'bg-blue-500 text-white' 
+              :class="['max-w-[70%] rounded-2xl px-4 py-3',
+                       message.role === 'user'
+                         ? 'bg-blue-500 text-white'
                          : 'bg-gray-100 text-gray-800'
               ]"
             >
@@ -82,7 +82,7 @@
                 v-html="formatMessage(message.content)"
               />
               <div
-                :class="['text-xs mt-2 opacity-70', 
+                :class="['text-xs mt-2 opacity-70',
                          message.role === 'user' ? 'text-right' : 'text-left'
                 ]"
               >
@@ -217,7 +217,7 @@ const connectionStatus = ref<'connected' | 'connecting' | 'disconnected'>('disco
 const messagesContainer = ref<HTMLElement>()
 
 // SSE 连接
-let eventSource: EventSource | null = null
+const eventSource: EventSource | null = null
 
 // 计算属性
 const connectionStatusText = computed(() => {
@@ -256,71 +256,71 @@ const connectSSE = () => {
   isConnected.value = false
 
   try {
-    eventSource = new EventSource('http://localhost:3001/chat/stream')
-
-    eventSource.onopen = () => {
-      console.log('SSE connection opened')
-      connectionStatus.value = 'connected'
-      isConnected.value = true
-      antMessage.success('已连接到聊天服务器')
-    }
-
-    eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error)
-      connectionStatus.value = 'disconnected'
-      isConnected.value = false
-      antMessage.error('连接服务器失败')
-    }
-
-    // 监听不同类型的事件
-    eventSource.addEventListener('connected', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('Connected:', data)
-    })
-
-    eventSource.addEventListener('message', (event) => {
-      const message: ChatMessage = JSON.parse(event.data)
-      console.log('Received message:', message)
-      
-      // 如果是流式消息的完成，清除流式显示
-      if (streamingMessage.value && streamingMessage.value.id === message.id) {
-        streamingMessage.value = null
-      }
-      
-      // 检查是否已存在该消息
-      const existingIndex = messages.value.findIndex(m => m.id === message.id)
-      if (existingIndex >= 0) {
-        messages.value[existingIndex] = message
-      } else {
-        messages.value.push(message)
-      }
-      
-      scrollToBottom()
-    })
-
-    eventSource.addEventListener('streaming', (event) => {
-      const data: StreamingMessage = JSON.parse(event.data)
-      console.log('Streaming:', data)
-      streamingMessage.value = data
-      scrollToBottom()
-    })
-
-    eventSource.addEventListener('history', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('History:', data)
-      if (data.messages && Array.isArray(data.messages)) {
-        messages.value = data.messages
-        scrollToBottom()
-      }
-    })
-
-    eventSource.addEventListener('cleared', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('Chat cleared:', data)
-      messages.value = []
-      streamingMessage.value = null
-      antMessage.info('聊天记录已清空')
-    })
+    // eventSource = new EventSource('http://localhost:3001/chat/stream')
+    //
+    // eventSource.onopen = () => {
+    //   console.log('SSE connection opened')
+    //   connectionStatus.value = 'connected'
+    //   isConnected.value = true
+    //   antMessage.success('已连接到聊天服务器')
+    // }
+    //
+    // eventSource.onerror = (error) => {
+    //   console.error('SSE connection error:', error)
+    //   connectionStatus.value = 'disconnected'
+    //   isConnected.value = false
+    //   antMessage.error('连接服务器失败')
+    // }
+    //
+    // // 监听不同类型的事件
+    // eventSource.addEventListener('connected', (event) => {
+    //   const data = JSON.parse(event.data)
+    //   console.log('Connected:', data)
+    // })
+    //
+    // eventSource.addEventListener('message', (event) => {
+    //   const message: ChatMessage = JSON.parse(event.data)
+    //   console.log('Received message:', message)
+    //
+    //   // 如果是流式消息的完成，清除流式显示
+    //   if (streamingMessage.value && streamingMessage.value.id === message.id) {
+    //     streamingMessage.value = null
+    //   }
+    //
+    //   // 检查是否已存在该消息
+    //   const existingIndex = messages.value.findIndex(m => m.id === message.id)
+    //   if (existingIndex >= 0) {
+    //     messages.value[existingIndex] = message
+    //   } else {
+    //     messages.value.push(message)
+    //   }
+    //
+    //   scrollToBottom()
+    // })
+    //
+    // eventSource.addEventListener('streaming', (event) => {
+    //   const data: StreamingMessage = JSON.parse(event.data)
+    //   console.log('Streaming:', data)
+    //   streamingMessage.value = data
+    //   scrollToBottom()
+    // })
+    //
+    // eventSource.addEventListener('history', (event) => {
+    //   const data = JSON.parse(event.data)
+    //   console.log('History:', data)
+    //   if (data.messages && Array.isArray(data.messages)) {
+    //     messages.value = data.messages
+    //     scrollToBottom()
+    //   }
+    // })
+    //
+    // eventSource.addEventListener('cleared', (event) => {
+    //   const data = JSON.parse(event.data)
+    //   console.log('Chat cleared:', data)
+    //   messages.value = []
+    //   streamingMessage.value = null
+    //   antMessage.info('聊天记录已清空')
+    // })
 
   } catch (error) {
     console.error('Failed to create SSE connection:', error)
@@ -451,20 +451,20 @@ watch(messages, () => {
   animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-indicator span:nth-child(1) { 
-  animation-delay: -0.32s; 
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
 }
 
-.typing-indicator span:nth-child(2) { 
-  animation-delay: -0.16s; 
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
 }
 
 @keyframes typing {
-  0%, 80%, 100% { 
-    transform: scale(0); 
+  0%, 80%, 100% {
+    transform: scale(0);
   }
-  40% { 
-    transform: scale(1); 
+  40% {
+    transform: scale(1);
   }
 }
 </style>
