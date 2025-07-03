@@ -22,6 +22,7 @@
     "sonar:setup": "./scripts/setup-sonar-local.sh",
     "quality-check": "./scripts/quality-check.sh",
     "test:dev": "./scripts/test-dev.sh",
+    "cleanup": "./scripts/cleanup.sh",
     "prepare": "husky"
   },
   "dependencies": {
