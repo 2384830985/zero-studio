@@ -36,6 +36,15 @@ else
     echo "端口 5173 未被占用"
 fi
 
+# 检查并杀死占用 5174 端口的进程 (Vite dev server)
+PORT_5174=$(lsof -ti:5174 2>/dev/null)
+if [ ! -z "$PORT_5174" ]; then
+    echo "发现端口 5174 被进程 $PORT_5174 占用，正在终止..."
+    kill -9 $PORT_5174 2>/dev/null || echo "无法终止进程 $PORT_5174"
+else
+    echo "端口 5174 未被占用"
+fi
+
 # 检查并杀死占用 5858 端口的进程 (Electron debugger)
 PORT_5858=$(lsof -ti:5858 2>/dev/null)
 if [ ! -z "$PORT_5858" ]; then

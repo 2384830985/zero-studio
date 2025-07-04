@@ -31,7 +31,11 @@ export default defineConfig(({ command }) => {
               console.log(/* For `.vscode/.debug.script.mjs` */'[startup] Electron App')
             } else {
               console.log('🚀 Starting Electron in development mode...')
-              args.startup(['--inspect=5858', '--remote-debugging-port=9222'])
+              // 添加延迟，确保 VITE_DEV_SERVER_URL 被正确设置
+              setTimeout(() => {
+                console.log('🔄 Delayed Electron startup with VITE_DEV_SERVER_URL:', process.env.VITE_DEV_SERVER_URL)
+                args.startup(['--inspect=5858', '--remote-debugging-port=9222'])
+              }, 2000) // 延迟 1 秒
             }
           },
           vite: {
@@ -39,12 +43,20 @@ export default defineConfig(({ command }) => {
               sourcemap,
               minify: isBuild,
               outDir: 'dist-electron/main',
+              lib: {
+                entry: 'electron/main/index.ts',
+                formats: ['es'],
+                fileName: () => 'index.js',
+              },
               rollupOptions: {
                 // Some third-party Node.js libraries may not be built correctly by Vite, especially `C/C++` addons,
                 // we can use `external` to exclude them to ensure they work correctly.
                 // Others need to put them in `dependencies` to ensure they are collected into `app.asar` after the app is built.
                 // Of course, this is not absolute, just this way is relatively simple. :)
                 external: Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
+                output: {
+                  format: 'es',
+                },
               },
             },
           },
@@ -82,7 +94,7 @@ export default defineConfig(({ command }) => {
     server: {
       port: 5173,
       host: '127.0.0.1',
-      strictPort: false,
+      strictPort: false, // 允许端口自动切换，确保能够启动
       // 在开发模式下启用热重载
       hmr: {
         port: 5174,

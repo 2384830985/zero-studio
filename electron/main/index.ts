@@ -1,11 +1,19 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
 import { log } from 'node:console'
 // import { SSEServer } from './sse-server'
-createRequire(import.meta.url)
+
+console.log('🚀 Electron Main Process Starting...')
+console.log('Process arguments:', process.argv)
+console.log('Environment variables at startup:', {
+  NODE_ENV: process.env.NODE_ENV,
+  ELECTRON: process.env.ELECTRON,
+  VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL,
+})
+
+// ES 模块中获取 __dirname 的正确方式
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -45,10 +53,21 @@ const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
 async function createWindow() {
+  // 调试信息：打印所有相关环境变量
+  console.log('=== Electron Main Process Debug Info ===')
+  console.log('NODE_ENV:', process.env.NODE_ENV)
+  console.log('ELECTRON:', process.env.ELECTRON)
+  console.log('VITE_DEV_SERVER_URL:', process.env.VITE_DEV_SERVER_URL)
+  console.log('VITE_DEV_SERVER_URL (exported):', VITE_DEV_SERVER_URL)
+  console.log('APP_ROOT:', process.env.APP_ROOT)
+  console.log('VITE_PUBLIC:', process.env.VITE_PUBLIC)
+  console.log('========================================')
+
   win = new BrowserWindow({
     title: 'Main window',
     icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
     webPreferences: {
+      devTools: true,
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
       // nodeIntegration: true,
@@ -61,11 +80,31 @@ async function createWindow() {
 
   if (VITE_DEV_SERVER_URL) { // #298
     log('VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
+
+    // 添加错误处理和重试机制
+    win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+      console.error(`Failed to load URL: ${validatedURL}`)
+      console.error(`Error code: ${errorCode}, Description: ${errorDescription}`)
+
+      // 如果是开发服务器连接失败，尝试重新加载
+      if (validatedURL === VITE_DEV_SERVER_URL) {
+        console.log('Retrying to load development server...')
+        setTimeout(() => {
+          win?.loadURL(VITE_DEV_SERVER_URL)
+        }, 2000) // 2秒后重试
+      }
+    })
+
     win.loadURL(VITE_DEV_SERVER_URL)
     // Open devTool if the app is not packaged
     win.webContents.openDevTools()
   } else {
     log('NO VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
+    log('Environment variables:', {
+      NODE_ENV: process.env.NODE_ENV,
+      ELECTRON: process.env.ELECTRON,
+      VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL,
+    })
     win.loadFile(indexHtml)
   }
 
@@ -81,7 +120,11 @@ async function createWindow() {
   })
   // win.webContents.on('will-navigate', (event, url) => { }) #344
 }
-app.whenReady().then(createWindow)
+console.log('📱 Registering app.whenReady() callback...')
+app.whenReady().then(() => {
+  console.log('✅ Electron app is ready! Creating window...')
+  createWindow()
+})
 
 // app.whenReady().then(async () => {
 //   await createWindow()
