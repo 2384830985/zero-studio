@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
 import { log } from 'node:console'
-// import { SSEServer } from './sse-server'
+import { MCPServer } from './mcp-server'
 
 console.log('🚀 Electron Main Process Starting...')
 console.log('Process arguments:', process.argv)
@@ -48,7 +48,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
-let sseServer: | null = null
+let mcpServer: MCPServer | null = null
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
@@ -64,8 +64,10 @@ async function createWindow() {
   console.log('========================================')
 
   win = new BrowserWindow({
-    title: 'Main window',
-    icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
+    title: 'Big Brother Studio',
+    icon: path.join(process.env.VITE_PUBLIC, 'app-icon.png'),
+    width: 1200,
+    height: 800,
     webPreferences: {
       devTools: true,
       preload,
@@ -121,9 +123,22 @@ async function createWindow() {
   // win.webContents.on('will-navigate', (event, url) => { }) #344
 }
 console.log('📱 Registering app.whenReady() callback...')
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   console.log('✅ Electron app is ready! Creating window...')
-  createWindow()
+  await createWindow()
+
+  // 启动 MCP 服务器
+  try {
+    mcpServer = new MCPServer({
+      port: 3002,
+      enableCors: true,
+      streamingEnabled: true,
+    })
+    await mcpServer.start()
+    console.log('✅ MCP Server started successfully')
+  } catch (error) {
+    console.error('❌ Failed to start MCP Server:', error)
+  }
 })
 
 // app.whenReady().then(async () => {
@@ -145,15 +160,15 @@ app.whenReady().then(() => {
 app.on('window-all-closed', async () => {
   win = null
 
-  // 停止 SSE 服务器
-  if (sseServer) {
+  // 停止 MCP 服务器
+  if (mcpServer) {
     try {
-      // await sseServer.stop()
-      console.log('SSE Server stopped')
+      await mcpServer.stop()
+      console.log('✅ MCP Server stopped')
     } catch (error) {
-      console.error('Error stopping SSE Server:', error)
+      console.error('❌ Error stopping MCP Server:', error)
     }
-    sseServer = null
+    mcpServer = null
   }
 
   if (process.platform !== 'darwin') {app.quit()}
@@ -231,11 +246,18 @@ if (process.env.NODE_ENV === 'development') {
     }
   })
 
-  // SSE 服务器相关的 IPC 处理器
-  ipcMain.handle('get-sse-server-stats', () => {
-    if (sseServer) {
-      // return sseServer.getStats()
+  // MCP 服务器相关的 IPC 处理器
+  ipcMain.handle('get-mcp-server-stats', () => {
+    if (mcpServer) {
+      return mcpServer.getStats()
     }
     return null
+  })
+
+  ipcMain.handle('get-mcp-conversations', () => {
+    if (mcpServer) {
+      return mcpServer.getConversations()
+    }
+    return []
   })
 }

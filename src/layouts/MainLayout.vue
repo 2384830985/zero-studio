@@ -59,6 +59,16 @@
           <RobotOutlined />
         </div>
         <div
+          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 relative hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
+          :class="{
+            'bg-blue-50 text-blue-500 scale-110 before:absolute before:left-[-8px] before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-4 before:bg-blue-500 before:rounded': $route.path === '/mcp'
+          }"
+          title="MCP 聊天"
+          @click="$router.push('/mcp')"
+        >
+          <ApiOutlined />
+        </div>
+        <div
           class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
           title="工具"
         >
@@ -114,6 +124,7 @@ import {
   AppstoreOutlined,
   TranslationOutlined,
   RobotOutlined,
+  ApiOutlined,
   LogoutOutlined,
   FolderOutlined,
   QuestionCircleOutlined,

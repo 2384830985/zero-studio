@@ -4,6 +4,7 @@ import ChatView from '../views/chat/ChatView.vue'
 import TranslateView from '../views/translate/TranslateView.vue'
 import SettingsView from '../views/settings/SettingsView.vue'
 import DifyView from '../views/dify/DifyView.vue'
+import MCPChatView from '../views/mcp/MCPChatView.vue'
 
 const routes = [
   {
@@ -28,6 +29,11 @@ const routes = [
         path: 'dify',
         name: 'Dify',
         component: DifyView,
+      },
+      {
+        path: 'mcp',
+        name: 'MCP',
+        component: MCPChatView,
       },
       {
         path: 'settings',

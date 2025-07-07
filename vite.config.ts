@@ -32,10 +32,12 @@ export default defineConfig(({ command }) => {
             } else {
               console.log('🚀 Starting Electron in development mode...')
               // 添加延迟，确保 VITE_DEV_SERVER_URL 被正确设置
-              setTimeout(() => {
-                console.log('🔄 Delayed Electron startup with VITE_DEV_SERVER_URL:', process.env.VITE_DEV_SERVER_URL)
-                args.startup(['--inspect=5858', '--remote-debugging-port=9222'])
-              }, 2000) // 延迟 1 秒
+              // setTimeout(() => {
+              //   console.log('🔄 Delayed Electron startup with VITE_DEV_SERVER_URL:', process.env.VITE_DEV_SERVER_URL)
+              //   args.startup(['--inspect=5858', '--remote-debugging-port=9222'])
+              // }, 2000) // 延迟 1 秒
+              // 直接启动，不添加可能冲突的调试参数
+              args.startup()
             }
           },
           vite: {
