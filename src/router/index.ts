@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import ChatView from '../views/chat/ChatView.vue'
 import TranslateView from '../views/translate/TranslateView.vue'
+import SettingsView from '../views/settings/SettingsView.vue'
 
 const routes = [
   {
@@ -21,6 +22,11 @@ const routes = [
         path: 'translate',
         name: 'Translate',
         component: TranslateView,
+      },
+      {
+        path: 'settings',
+        name: 'Settings',
+        component: SettingsView,
       },
     ],
   },
