@@ -116,14 +116,123 @@
         </div>
       </div>
 
+      <!-- Plan-and-Execute 执行计划显示 -->
+      <div
+        v-if="currentPlan && planAndExecuteMode"
+        class="px-6 py-4 border-t border-gray-100 bg-blue-50"
+      >
+        <div class="mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-gray-900">
+              执行计划
+            </h3>
+            <a-tag :color="getPlanStatusColor(currentPlan.status)">
+              {{ getPlanStatusText(currentPlan.status) }}
+            </a-tag>
+          </div>
+          <p class="text-xs text-gray-600 mb-3">
+            {{ currentPlan.question }}
+          </p>
+
+          <!-- 步骤列表 -->
+          <div class="space-y-2">
+            <div
+              v-for="(step, index) in currentPlan.steps"
+              :key="step.id"
+              class="flex items-start gap-3 p-2 rounded-lg bg-white border"
+              :class="getStepBorderClass(step.status)"
+            >
+              <div class="flex-shrink-0 mt-1">
+                <div
+                  class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
+                  :class="getStepIconClass(step.status)"
+                >
+                  <template v-if="step.status === 'completed'">
+                    <CheckOutlined />
+                  </template>
+                  <template v-else-if="step.status === 'failed'">
+                    <CloseOutlined />
+                  </template>
+                  <template v-else-if="step.status === 'executing'">
+                    <LoadingOutlined class="animate-spin" />
+                  </template>
+                  <template v-else>
+                    {{ index + 1 }}
+                  </template>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-900 mb-1">
+                  {{ step.description }}
+                </p>
+                <div
+                  v-if="step.result"
+                  class="text-xs text-gray-600 bg-gray-50 p-2 rounded"
+                >
+                  {{ step.result.substring(0, 100) }}{{ step.result.length > 100 ? '...' : '' }}
+                </div>
+                <div
+                  v-if="step.error"
+                  class="text-xs text-red-600 bg-red-50 p-2 rounded"
+                >
+                  错误: {{ step.error }}
+                </div>
+                <div
+                  v-if="step.startTime"
+                  class="text-xs text-gray-400 mt-1"
+                >
+                  {{ formatTime(step.startTime) }}
+                  <span v-if="step.endTime"> - {{ formatTime(step.endTime) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 最终答案 -->
+          <div
+            v-if="currentPlan.finalAnswer"
+            class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg"
+          >
+            <h4 class="text-sm font-medium text-green-900 mb-2">
+              最终答案
+            </h4>
+            <p class="text-sm text-green-800">
+              {{ currentPlan.finalAnswer }}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- 输入区域 -->
       <div class="px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <!-- 模式切换 -->
+        <div class="flex items-center gap-3 mb-3">
+          <span class="text-sm text-gray-600">模式:</span>
+          <a-radio-group
+            v-model:value="chatMode"
+            size="small"
+          >
+            <a-radio-button value="normal">
+              普通聊天
+            </a-radio-button>
+            <a-radio-button value="plan-execute">
+              Plan & Execute
+            </a-radio-button>
+          </a-radio-group>
+          <a-tooltip
+            v-if="chatMode === 'plan-execute'"
+            title="Plan-and-Execute 模式会将复杂问题分解为多个步骤逐步执行"
+          >
+            <QuestionCircleOutlined class="text-gray-400" />
+          </a-tooltip>
+        </div>
+
         <div class="bg-gray-50 rounded-xl p-3 mb-3">
+          <!-- :disabled="!isConnected || isSending || (planAndExecuteMode && currentPlan?.status === 'executing')" -->
           <a-textarea
             v-model:value="inputMessage"
-            :placeholder="isConnected ? '在这里输入消息...' : '连接中，请稍候...'"
-            :disabled="!isConnected || isSending"
-            :auto-size="{ minRows: 1, maxRows: 4 }"
+            :placeholder="getInputPlaceholder()"
+            :auto-size="{ minRows: chatMode === 'plan-execute' ? 2 : 1, maxRows: 4 }"
             class="!border-none !bg-transparent !shadow-none !p-0 text-sm"
             @keydown="handleKeyDown"
           />
@@ -143,7 +252,7 @@
             <TranslationOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
             <a-button
               size="small"
-              :disabled="messages.length === 0"
+              :disabled="messages.length === 0 && !currentPlan"
               class="text-xs"
               @click="clearChat"
             >
@@ -157,12 +266,20 @@
             >
               重连
             </a-button>
+            <a-button
+              v-if="planAndExecuteMode && currentPlan?.status === 'executing'"
+              size="small"
+              class="text-xs"
+              @click="stopPlanExecution"
+            >
+              停止执行
+            </a-button>
           </div>
+          <!-- :disabled="!isConnected || !inputMessage.trim() || (planAndExecuteMode && currentPlan?.status === 'executing')" -->
           <a-button
             type="primary"
             shape="circle"
             :loading="isSending"
-            :disabled="!isConnected || !inputMessage.trim()"
             @click="sendMessage"
           >
             <template #icon>
@@ -190,7 +307,17 @@ import {
   ClockCircleOutlined,
   TranslationOutlined,
   ArrowUpOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  LoadingOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons-vue'
+import {
+  createDifyClient,
+  loadDifyConfig,
+  type ExecutionPlan,
+  type DifyClient,
+} from '../../utils/dify-client'
 
 interface ChatMessage {
   id: string
@@ -215,6 +342,11 @@ const isSending = ref(false)
 const isConnected = ref(false)
 const connectionStatus = ref<'connected' | 'connecting' | 'disconnected'>('disconnected')
 const messagesContainer = ref<HTMLElement>()
+
+// Plan-and-Execute 相关
+const chatMode = ref<'normal' | 'plan-execute'>('normal')
+const currentPlan = ref<ExecutionPlan | null>(null)
+const difyClient = ref<DifyClient | null>(null)
 
 // SSE 连接
 const eventSource: EventSource | null = null
@@ -245,6 +377,8 @@ const connectionStatusClass = computed(() => {
     return 'bg-gray-400'
   }
 })
+
+const planAndExecuteMode = computed(() => chatMode.value === 'plan-execute')
 
 // 连接 SSE
 const connectSSE = () => {
@@ -338,6 +472,14 @@ const sendMessage = async () => {
 
   const content = inputMessage.value.trim()
   inputMessage.value = ''
+
+  // Plan-and-Execute 模式
+  if (planAndExecuteMode.value) {
+    await executePlanAndExecute(content)
+    return
+  }
+
+  // 普通聊天模式
   isSending.value = true
 
   try {
@@ -368,15 +510,25 @@ const sendMessage = async () => {
 // 清空聊天
 const clearChat = async () => {
   try {
-    const response = await fetch('http://localhost:3001/chat/clear', {
-      method: 'DELETE',
-    })
+    // 清空本地数据
+    messages.value = []
+    streamingMessage.value = null
+    currentPlan.value = null
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    // 如果是普通聊天模式，调用服务器清空接口
+    if (!planAndExecuteMode.value) {
+      const response = await fetch('http://localhost:3001/chat/clear', {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      console.log('Chat cleared')
     }
 
-    console.log('Chat cleared')
+    antMessage.success('聊天记录已清空')
   } catch (error) {
     console.error('Failed to clear chat:', error)
     antMessage.error('清空聊天失败')
@@ -419,9 +571,157 @@ const formatTime = (timestamp: number) => {
   })
 }
 
+// Plan-and-Execute 相关方法
+const initializeDifyClient = () => {
+  const config = loadDifyConfig()
+  if (config && config.endpoint && config.apiKey) {
+    difyClient.value = createDifyClient(config)
+    isConnected.value = true
+    connectionStatus.value = 'connected'
+  } else {
+    isConnected.value = false
+    connectionStatus.value = 'disconnected'
+    antMessage.warning('请先在 Dify 页面配置 API 信息')
+  }
+}
+
+const getInputPlaceholder = () => {
+  if (!isConnected.value) {
+    return '连接中，请稍候...'
+  }
+  if (planAndExecuteMode.value) {
+    return '输入复杂问题，AI 将制定执行计划并逐步解决...'
+  }
+  return '在这里输入消息...'
+}
+
+const getPlanStatusColor = (status: string) => {
+  switch (status) {
+  case 'planning': return 'blue'
+  case 'executing': return 'orange'
+  case 'completed': return 'green'
+  case 'failed': return 'red'
+  default: return 'default'
+  }
+}
+
+const getPlanStatusText = (status: string) => {
+  switch (status) {
+  case 'planning': return '规划中'
+  case 'executing': return '执行中'
+  case 'completed': return '已完成'
+  case 'failed': return '执行失败'
+  default: return '未知状态'
+  }
+}
+
+const getStepBorderClass = (status: string) => {
+  switch (status) {
+  case 'executing': return 'border-blue-300 bg-blue-50'
+  case 'completed': return 'border-green-300 bg-green-50'
+  case 'failed': return 'border-red-300 bg-red-50'
+  default: return 'border-gray-200'
+  }
+}
+
+const getStepIconClass = (status: string) => {
+  switch (status) {
+  case 'executing': return 'bg-blue-500 text-white'
+  case 'completed': return 'bg-green-500 text-white'
+  case 'failed': return 'bg-red-500 text-white'
+  default: return 'bg-gray-200 text-gray-600'
+  }
+}
+
+const executePlanAndExecute = async (question: string) => {
+  if (!difyClient.value) {
+    antMessage.error('Dify 客户端未初始化')
+    return
+  }
+
+  try {
+    isSending.value = true
+
+    // 添加用户消息
+    const userMessage: ChatMessage = {
+      id: `user_${Date.now()}`,
+      role: 'user',
+      content: question,
+      timestamp: Date.now(),
+    }
+    messages.value.push(userMessage)
+
+    // 执行 Plan-and-Execute
+    await difyClient.value.planAndExecute(question, {
+      maxSteps: 5,
+      onPlanGenerated: (generatedPlan) => {
+        currentPlan.value = generatedPlan
+        scrollToBottom()
+      },
+      onStepStart: (step, plan) => {
+        currentPlan.value = plan
+        scrollToBottom()
+      },
+      onStepComplete: (step, plan) => {
+        currentPlan.value = plan
+        scrollToBottom()
+      },
+      onComplete: (completedPlan) => {
+        currentPlan.value = completedPlan
+
+        // 添加最终答案作为助手消息
+        if (completedPlan.finalAnswer) {
+          const assistantMessage: ChatMessage = {
+            id: `assistant_${Date.now()}`,
+            role: 'assistant',
+            content: completedPlan.finalAnswer,
+            timestamp: Date.now(),
+          }
+          messages.value.push(assistantMessage)
+        }
+
+        scrollToBottom()
+        antMessage.success('Plan-and-Execute 执行完成')
+      },
+      onError: (error) => {
+        console.error('Plan-and-Execute 执行失败:', error)
+        antMessage.error(`执行失败: ${error.message}`)
+      },
+    })
+
+  } catch (error) {
+    console.error('Plan-and-Execute 执行错误:', error)
+    antMessage.error('执行过程中发生错误')
+  } finally {
+    isSending.value = false
+  }
+}
+
+const stopPlanExecution = () => {
+  // 这里可以实现停止执行的逻辑
+  if (currentPlan.value) {
+    currentPlan.value.status = 'failed'
+    antMessage.info('已停止执行')
+  }
+}
+
 // 生命周期
 onMounted(() => {
-  connectSSE()
+  // 初始化连接
+  if (planAndExecuteMode.value) {
+    initializeDifyClient()
+  } else {
+    connectSSE()
+  }
+})
+
+// 监听模式切换
+watch(chatMode, (newMode) => {
+  if (newMode === 'plan-execute') {
+    initializeDifyClient()
+  } else {
+    connectSSE()
+  }
 })
 
 onUnmounted(() => {
