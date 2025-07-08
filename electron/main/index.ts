@@ -2,19 +2,49 @@ import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
+import fs from 'node:fs'
 import { log } from 'node:console'
 import { MCPServer } from './mcp-server'
+import dotenv from 'dotenv'
+
+// 加载环境变量文件（根据环境选择不同文件）
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const isLocalEnvironment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+
+// 根据环境选择不同的配置文件
+const envFileName = isLocalEnvironment ? '.env.local' : '.env.pro'
+const envPath = path.join(__dirname, '../..', envFileName)
+
+if (isLocalEnvironment) {
+  console.log('🏠 Local environment detected, loading .env.local file...')
+} else {
+  console.log('🏭 Production environment detected, loading .env.pro file...')
+}
+
+// 检查环境变量文件是否存在
+if (fs.existsSync(envPath)) {
+  const result = dotenv.config({ path: envPath })
+  console.log(`✅ Successfully loaded ${envFileName} file`)
+  if (result.error) {
+    console.error(`❌ Error loading ${envFileName}:`, result.error.message)
+  } else if (result.parsed) {
+    console.log(`📝 Loaded ${Object.keys(result.parsed).length} environment variables`)
+  }
+} else {
+  console.log(`⚠️  ${envFileName} file not found, using system environment variables only`)
+}
 
 console.log('🚀 Electron Main Process Starting...')
-console.log('Process arguments:', process.argv)
+console.log('📄 Loaded environment variables from:', envPath)
 console.log('Environment variables at startup:', {
   NODE_ENV: process.env.NODE_ENV,
   ELECTRON: process.env.ELECTRON,
   VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL,
+  MEITUAN_AIGC_APP_ID: process.env.MEITUAN_AIGC_APP_ID || 'not set',
+  MEITUAN_AIGC_API_URL: process.env.MEITUAN_AIGC_API_URL || 'not set',
+  MEITUAN_AIGC_DEFAULT_MODEL: process.env.MEITUAN_AIGC_DEFAULT_MODEL || 'not set',
+  MCP_SERVER_PORT: process.env.MCP_SERVER_PORT || 'not set',
 })
-
-// ES 模块中获取 __dirname 的正确方式
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
 //
@@ -129,13 +159,30 @@ app.whenReady().then(async () => {
 
   // 启动 MCP 服务器
   try {
+    log('Starting MCP Server...', process.env.MEITUAN_AIGC_APP_ID)
+    const meituanConfig = process.env.MEITUAN_AIGC_APP_ID ? {
+      // 美团 AIGC API 地址
+      apiUrl: process.env.MEITUAN_AIGC_API_URL,
+      // 从环境变量获取 AppId
+      appId: process.env.MEITUAN_AIGC_APP_ID,
+      // 默认模型
+      defaultModel: process.env.MEITUAN_AIGC_DEFAULT_MODEL || 'deepseek-v3-friday',
+    } : undefined
+
     mcpServer = new MCPServer({
-      port: 3002,
+      port: parseInt(process.env.MCP_SERVER_PORT || '3002'),
       enableCors: true,
       streamingEnabled: true,
+      meituanAIGC: meituanConfig,
     })
     await mcpServer.start()
     console.log('✅ MCP Server started successfully')
+
+    if (meituanConfig) {
+      console.log('✅ Meituan AIGC API configured')
+    } else {
+      console.log('⚠️  Meituan AIGC API not configured - using mock responses')
+    }
   } catch (error) {
     console.error('❌ Failed to start MCP Server:', error)
   }

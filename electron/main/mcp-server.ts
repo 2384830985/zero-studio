@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import { Server } from 'http'
+import axios from 'axios'
+import { log } from 'node:console'
 
 export interface MCPMessage {
   id: string
@@ -35,6 +37,11 @@ export interface MCPServerConfig {
   enableCors?: boolean
   maxConnections?: number
   streamingEnabled?: boolean
+  meituanAIGC?: {
+    apiUrl?: string
+    appId: string
+    defaultModel?: string
+  }
 }
 
 export class MCPServer {
@@ -105,6 +112,8 @@ export class MCPServer {
         }
 
         const conversationId = this.generateId()
+
+        console.log('conversationId', conversationId)
 
         if (stream) {
           await this.handleStreamingRequest(req, res, messages, model, options, conversationId)
@@ -226,9 +235,7 @@ export class MCPServer {
         })
 
         // 生成 AI 回复
-        setTimeout(() => {
-          this.generateMCPResponse(userMessage, convId)
-        }, 500)
+        this.generateMCPResponse(userMessage, convId)
 
         res.json({
           success: true,
@@ -298,68 +305,189 @@ export class MCPServer {
     const responseId = this.generateId()
     const created = Math.floor(Date.now() / 1000)
 
-    // 模拟流式响应
-    const fullResponse = this.generateMockResponse(messages[messages.length - 1]?.content || '')
-    const words = fullResponse.split('')
+    try {
+      // 如果配置了美团 AIGC，则调用真实 API
+      console.log('this.config.meituanAIGC?.appId', this.config.meituanAIGC?.appId)
+      if (this.config.meituanAIGC?.appId) {
+        const response = await this.callMeituanAIGC(messages, true, model)
+        let fullContent = ''
 
-    let index = 0
+        response.data.on('data', (chunk: Buffer) => {
+          const chunkStr = chunk.toString()
+          const lines = chunkStr.split('\n')
 
-    const streamInterval = setInterval(() => {
-      if (index < words.length) {
-        const chunk: MCPStreamChunk = {
-          id: responseId,
-          object: 'chat.completion.chunk',
-          created,
-          model,
-          choices: [{
-            index: 0,
-            delta: {
-              content: words[index],
-            },
-            finish_reason: null,
-          }],
-        }
+          for (const line of lines) {
+            if (!line.trim()) {
+              continue // 跳过空行
+            }
 
-        res.write(`data: ${JSON.stringify(chunk)}\n\n`)
-        index++
+            try {
+              let jsonStr = ''
+              let data: any = null
+
+              // 查找第一个 { 的位置，从那里开始截取 JSON
+              const jsonStart = line.indexOf('{')
+              if (jsonStart !== -1) {
+                jsonStr = line.substring(jsonStart)
+                // 尝试解析 JSON
+                if (jsonStr.startsWith('{') && jsonStr.includes('}')) {
+                  data = JSON.parse(jsonStr)
+                }
+              }
+
+              if (!data) {
+                continue // 如果没有找到有效的 JSON，跳过这行
+              }
+
+              let deltaContent = ''
+
+              // 处理美团 AIGC API 的响应格式
+              // 优先使用标准的 delta.content 格式
+              if (data.choices?.[0]?.delta?.content) {
+                deltaContent = data.choices[0].delta.content
+              }
+              // 如果没有 delta.content，则忽略 data.content（避免重复）
+              // 因为美团 AIGC API 会同时返回两种格式，我们只需要增量内容
+
+              if (deltaContent) {
+                fullContent += deltaContent
+
+                // 转换为标准格式并发送
+                const standardChunk: MCPStreamChunk = {
+                  id: responseId,
+                  object: 'chat.completion.chunk',
+                  created,
+                  model,
+                  choices: [{
+                    index: 0,
+                    delta: {
+                      content: deltaContent,
+                    },
+                    finish_reason: data.choices?.[0]?.finish_reason || (data.lastOne ? 'stop' : null),
+                  }],
+                }
+
+                res.write(`data: ${JSON.stringify(standardChunk)}\n\n`)
+              }
+            } catch (parseError) {
+              console.error('[MCP Server] Error parsing stream chunk:', parseError)
+              console.error('Problematic line:', line)
+            }
+          }
+        })
+
+        response.data.on('end', () => {
+          // 发送结束标记
+          const finalChunk: MCPStreamChunk = {
+            id: responseId,
+            object: 'chat.completion.chunk',
+            created,
+            model,
+            choices: [{
+              index: 0,
+              delta: {},
+              finish_reason: 'stop',
+            }],
+          }
+
+          res.write(`data: ${JSON.stringify(finalChunk)}\n\n`)
+          res.write('data: [DONE]\n\n')
+          res.end()
+
+          // 保存完整消息到对话历史
+          const assistantMessage: MCPMessage = {
+            id: responseId,
+            role: 'assistant',
+            content: fullContent,
+            timestamp: Date.now(),
+            metadata: { model, ...options },
+          }
+
+          if (!this.conversations.has(conversationId)) {
+            this.conversations.set(conversationId, [])
+          }
+          this.conversations.get(conversationId)!.push(assistantMessage)
+        })
+
+        response.data.on('error', (error: any) => {
+          console.error('[MCP Server] Stream error:', error)
+          res.write('data: {\'error\': \'Stream error\'}\n\n')
+          res.end()
+        })
+
       } else {
-        // 发送结束标记
-        const finalChunk: MCPStreamChunk = {
-          id: responseId,
-          object: 'chat.completion.chunk',
-          created,
-          model,
-          choices: [{
-            index: 0,
-            delta: {},
-            finish_reason: 'stop',
-          }],
-        }
+        // 回退到模拟响应
+        const fullResponse = this.generateMockResponse(messages[messages.length - 1]?.content || '')
+        const words = fullResponse.split('')
+        let index = 0
 
-        res.write(`data: ${JSON.stringify(finalChunk)}\n\n`)
-        res.write('data: [DONE]\n\n')
-        res.end()
-        clearInterval(streamInterval)
+        const streamInterval = setInterval(() => {
+          if (index < words.length) {
+            const chunk: MCPStreamChunk = {
+              id: responseId,
+              object: 'chat.completion.chunk',
+              created,
+              model,
+              choices: [{
+                index: 0,
+                delta: {
+                  content: words[index],
+                },
+                finish_reason: null,
+              }],
+            }
 
-        // 保存完整消息到对话历史
-        const assistantMessage: MCPMessage = {
-          id: responseId,
-          role: 'assistant',
-          content: fullResponse,
-          timestamp: Date.now(),
-          metadata: { model, ...options },
-        }
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`)
+            index++
+          } else {
+            // 发送结束标记
+            const finalChunk: MCPStreamChunk = {
+              id: responseId,
+              object: 'chat.completion.chunk',
+              created,
+              model,
+              choices: [{
+                index: 0,
+                delta: {},
+                finish_reason: 'stop',
+              }],
+            }
 
-        if (!this.conversations.has(conversationId)) {
-          this.conversations.set(conversationId, [])
-        }
-        this.conversations.get(conversationId)!.push(assistantMessage)
+            res.write(`data: ${JSON.stringify(finalChunk)}\n\n`)
+            res.write('data: [DONE]\n\n')
+            res.end()
+            clearInterval(streamInterval)
+
+            // 保存完整消息到对话历史
+            const assistantMessage: MCPMessage = {
+              id: responseId,
+              role: 'assistant',
+              content: fullResponse,
+              timestamp: Date.now(),
+              metadata: { model, ...options },
+            }
+
+            if (!this.conversations.has(conversationId)) {
+              this.conversations.set(conversationId, [])
+            }
+            this.conversations.get(conversationId)!.push(assistantMessage)
+          }
+        }, 50)
+
+        // 处理客户端断开连接
+        req.on('close', () => {
+          clearInterval(streamInterval)
+        })
       }
-    }, 50) // 50ms 间隔模拟打字效果
+    } catch (error) {
+      console.error('[MCP Server] Error in streaming request:', error)
+      res.write('data: {\'error\': \'API call failed\'}\n\n')
+      res.end()
+    }
 
     // 处理客户端断开连接
     req.on('close', () => {
-      clearInterval(streamInterval)
+      // 清理资源
     })
   }
 
@@ -371,12 +499,25 @@ export class MCPServer {
     options: any,
     conversationId: string,
   ) {
-    // 模拟处理时间
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    const responseContent = this.generateMockResponse(messages[messages.length - 1]?.content || '')
     const responseId = this.generateId()
     const created = Math.floor(Date.now() / 1000)
+    let responseContent = ''
+
+    try {
+      // 如果配置了美团 AIGC，则调用真实 API
+      if (this.config.meituanAIGC?.appId) {
+        const response = await this.callMeituanAIGC(messages, false, model)
+        responseContent = response.data.choices[0].message.content
+      } else {
+        // 回退到模拟响应
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        responseContent = this.generateMockResponse(messages[messages.length - 1]?.content || '')
+      }
+    } catch (error) {
+      console.error('[MCP Server] Error in non-streaming request:', error)
+      // 回退到模拟响应
+      responseContent = this.generateMockResponse(messages[messages.length - 1]?.content || '')
+    }
 
     const response = {
       id: responseId,
@@ -417,7 +558,134 @@ export class MCPServer {
     res.json(response)
   }
 
-  private generateMCPResponse(userMessage: MCPMessage, conversationId: string) {
+  private async generateMCPResponse(userMessage: MCPMessage, conversationId: string) {
+    const assistantMessageId = this.generateId()
+
+    try {
+      // 如果配置了美团 AIGC，则调用真实 API
+      if (this.config.meituanAIGC?.appId) {
+        // 获取对话历史，构建完整的消息上下文
+        const conversationHistory = this.conversations.get(conversationId) || []
+        const messages = conversationHistory.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+        }))
+
+        console.log('[MCP Server] Calling Meituan AIGC API for MCP chat...')
+
+        // 调用美团 AIGC API（流式）
+        const response = await this.callMeituanAIGC(messages, true)
+
+        // 处理流式响应
+        let fullContent = ''
+
+        response.data.on('data', (chunk: Buffer) => {
+          const chunkStr = chunk.toString()
+          const lines = chunkStr.split('\n')
+
+          log('[MCP Server] Received chunk:', chunkStr)
+
+          for (const line of lines) {
+            if (!line.trim()) {
+              continue // 跳过空行
+            }
+
+            try {
+              let jsonStr = ''
+              let data: any = null
+
+              // 查找第一个 { 的位置，从那里开始截取 JSON
+              const jsonStart = line.indexOf('{')
+              if (jsonStart !== -1) {
+                jsonStr = line.substring(jsonStart)
+                // 尝试解析 JSON
+                if (jsonStr.startsWith('{') && jsonStr.includes('}')) {
+                  data = JSON.parse(jsonStr)
+                }
+              }
+
+              if (!data) {
+                continue // 如果没有找到有效的 JSON，跳过这行
+              }
+
+              log('[MCP Server] Parsed data:', data.choices?.[0]?.delta)
+              let deltaContent = ''
+
+              // 处理美团 AIGC API 的响应格式
+              // 优先使用标准的 delta.content 格式
+              if (data.choices?.[0]?.delta?.content) {
+                deltaContent = data.choices[0].delta.content
+              }
+              log('[MCP Server] Delta content:', deltaContent)
+              // 如果没有 delta.content，则忽略 data.content（避免重复）
+              // 因为美团 AIGC API 会同时返回两种格式，我们只需要增量内容
+
+              if (deltaContent !== '') {
+                fullContent += deltaContent
+
+                // 实时广播流式内容
+                this.broadcastSSEMessage('streaming', {
+                  conversationId,
+                  messageId: assistantMessageId,
+                  role: 'assistant',
+                  content: fullContent,
+                  timestamp: Date.now(),
+                  isComplete: false,
+                })
+              }
+            } catch (parseError) {
+              console.error('[MCP Server] Error parsing MCP stream chunk:', parseError)
+              console.error('Problematic line:', line)
+            }
+          }
+        })
+
+        response.data.on('end', () => {
+          // 创建完整的助手消息
+          const assistantMessage: MCPMessage = {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: fullContent,
+            timestamp: Date.now(),
+            metadata: {
+              model: this.config.meituanAIGC?.defaultModel || 'gpt-3.5-turbo',
+              stream: true,
+            },
+          }
+
+          // 保存到对话历史
+          this.conversations.get(conversationId)!.push(assistantMessage)
+
+          // 发送完整消息
+          this.broadcastSSEMessage('message', {
+            conversationId,
+            message: {
+              ...assistantMessage,
+              isComplete: true,
+            },
+          })
+
+          console.log('[MCP Server] Meituan AIGC API response completed for MCP chat')
+        })
+
+        response.data.on('error', (error: any) => {
+          console.error('[MCP Server] Meituan AIGC API stream error in MCP chat:', error)
+          // 回退到模拟响应
+          this.generateMockMCPResponse(userMessage, conversationId, assistantMessageId)
+        })
+
+      } else {
+        // 回退到模拟响应
+        this.generateMockMCPResponse(userMessage, conversationId, assistantMessageId)
+      }
+    } catch (error) {
+      console.error('[MCP Server] Error in generateMCPResponse:', error)
+      // 回退到模拟响应
+      this.generateMockMCPResponse(userMessage, conversationId, assistantMessageId)
+    }
+  }
+
+  private generateMockMCPResponse(userMessage: MCPMessage, conversationId: string, assistantMessageId?: string) {
     const responses = [
       '我理解您的问题。作为 MCP 服务器，我可以为您提供详细的分析...',
       '这是一个很有趣的话题！基于 MCP 协议的处理能力...',
@@ -430,7 +698,7 @@ export class MCPServer {
     const fullResponse = `${randomResponse}\n\n针对您提到的"${userMessage.content}"，我的回答是：${this.generateMockResponse(userMessage.content)}`
 
     const assistantMessage: MCPMessage = {
-      id: this.generateId(),
+      id: assistantMessageId || this.generateId(),
       role: 'assistant',
       content: fullResponse,
       timestamp: Date.now(),
@@ -535,6 +803,38 @@ export class MCPServer {
   private estimateTokens(text: string): number {
     // 简单的 token 估算：大约 4 个字符 = 1 个 token
     return Math.ceil(text.length / 4)
+  }
+
+  private async callMeituanAIGC(messages: any[], stream = false, model?: string): Promise<any> {
+    if (!this.config.meituanAIGC?.appId) {
+      throw new Error('Meituan AIGC configuration is missing')
+    }
+
+    const apiUrl = this.config.meituanAIGC.apiUrl || 'https://aigc.sankuai.com/v1/openai/native/chat/completions'
+    const requestModel = model || this.config.meituanAIGC.defaultModel || 'gpt-3.5-turbo'
+
+    const requestData = {
+      model: requestModel,
+      messages,
+      stream,
+    }
+
+    const headers = {
+      'Authorization': `Bearer ${this.config.meituanAIGC.appId}`,
+      'Content-Type': 'application/json',
+    }
+
+    try {
+      const response = await axios.post(apiUrl, requestData, {
+        headers,
+        responseType: stream ? 'stream' : 'json',
+      })
+
+      return response
+    } catch (error) {
+      console.error('[MCP Server] Error calling Meituan AIGC API:', error)
+      throw error
+    }
   }
 
   public async start(): Promise<void> {
