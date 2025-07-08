@@ -125,7 +125,7 @@ function useLoading() {
   width: 50px;
   height: 50px;
   background: #fff;
-  animation: square-spin 3s 0s cubic-bezier(0.09, 0.57, 0.49, 0.9) infinite;
+  animation: square-spin 1.5s 0s cubic-bezier(0.09, 0.57, 0.49, 0.9) infinite;
 }
 .app-loading-wrap {
   position: fixed;
@@ -161,12 +161,14 @@ function useLoading() {
 }
 
 // ----------------------------------------------------------------------
+const isEnvironment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+if (!isEnvironment) {
+  const { appendLoading, removeLoading } = useLoading()
+  domReady().then(appendLoading)
 
-const { appendLoading, removeLoading } = useLoading()
-domReady().then(appendLoading)
+  window.onmessage = (ev) => {
+    ev.data.payload === 'removeLoading' && removeLoading()
+  }
 
-window.onmessage = (ev) => {
-  ev.data.payload === 'removeLoading' && removeLoading()
+  setTimeout(removeLoading, 1500)
 }
-
-setTimeout(removeLoading, 4999)

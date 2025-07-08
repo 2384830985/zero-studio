@@ -20,6 +20,67 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
+          <!-- 模型选择器 -->
+          <a-dropdown
+            v-model:open="showModelSelector"
+            placement="bottomRight"
+            :trigger="['click']"
+          >
+            <a-button size="small">
+              <template #icon>
+                <SettingOutlined />
+              </template>
+              {{ selectedModel ? `${selectedModel.service.name} - ${selectedModel.model.name}` : '选择模型' }}
+            </a-button>
+            <template #overlay>
+              <a-menu
+                class="max-h-80 overflow-y-auto"
+                style="min-width: 300px;"
+              >
+                <template
+                  v-for="service in enabledModelServices"
+                  :key="service.id"
+                >
+                  <a-menu-item-group :title="service.name">
+                    <a-menu-item
+                      v-for="model in service.models.filter(m => m.enabled)"
+                      :key="`${service.id}-${model.name}`"
+                      @click="selectModel(service, model)"
+                    >
+                      <div class="flex items-center space-x-3">
+                        <div
+                          class="w-4 h-4 rounded-full flex-shrink-0"
+                          :style="{ backgroundColor: model.color || service.color }"
+                        />
+                        <div class="flex-1 min-w-0">
+                          <div class="text-sm font-medium text-gray-900 truncate">
+                            {{ model.name }}
+                          </div>
+                          <div class="text-xs text-gray-500 truncate">
+                            {{ model.description }}
+                          </div>
+                        </div>
+                        <div
+                          v-if="selectedModel?.service.id === service.id && selectedModel?.model.name === model.name"
+                          class="text-blue-500 text-xs"
+                        >
+                          ✓
+                        </div>
+                      </div>
+                    </a-menu-item>
+                  </a-menu-item-group>
+                </template>
+                <a-menu-divider v-if="enabledModelServices.length > 0" />
+                <a-menu-item @click="$router.push('/settings/model')">
+                  <div class="flex items-center space-x-2 text-gray-500">
+                    <SettingOutlined />
+                    <span>管理模型服务</span>
+                  </div>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+
           <a-button
             size="small"
             @click="showStats = !showStats"
@@ -236,7 +297,9 @@ import {
   LinkOutlined,
   GlobalOutlined,
   ArrowUpOutlined,
+  SettingOutlined,
 } from '@ant-design/icons-vue'
+import { createSettingsStorage, STORAGE_KEYS } from '../../utils/settingsStorage'
 
 interface MCPMessage {
   id: string
@@ -266,6 +329,24 @@ interface MCPServerStats {
   config: any
 }
 
+interface ModelService {
+  id: string
+  name: string
+  description: string
+  color: string
+  enabled: boolean
+  apiKey: string
+  apiUrl: string
+  models: ModelInfo[]
+}
+
+interface ModelInfo {
+  name: string
+  description: string
+  enabled: boolean
+  color: string
+}
+
 // 响应式数据
 const messages = ref<MCPMessage[]>([])
 const streamingMessage = ref<MCPMessage | null>(null)
@@ -277,6 +358,11 @@ const conversations = ref<MCPConversation[]>([])
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
 
+// 模型相关数据
+const modelServices = ref<ModelService[]>([])
+const selectedModel = ref<{ service: ModelService; model: ModelInfo } | null>(null)
+const showModelSelector = ref(false)
+
 // DOM 引用
 const messagesContainer = ref<HTMLElement>()
 
@@ -285,6 +371,14 @@ let eventSource: EventSource | null = null
 
 // 计算属性
 const isConnected = computed(() => connectionStatus.value === 'connected')
+
+// 获取启用的模型服务
+const enabledModelServices = computed(() => {
+  return modelServices.value.filter(service => service.enabled && service.models.some(m => m.enabled))
+})
+
+console.log('enabledModelServices', enabledModelServices.value)
+
 
 // 格式化时间
 const formatTime = (timestamp: number) => {
@@ -410,6 +504,23 @@ const sendMessage = async () => {
   isSending.value = true
 
   try {
+    // 构建请求元数据，包含选中的模型信息
+    const metadata: any = {
+      stream: true,
+    }
+
+    if (selectedModel.value) {
+      metadata.model = selectedModel.value.model.name
+      metadata.service = {
+        id: selectedModel.value.service.id,
+        name: selectedModel.value.service.name,
+        apiUrl: selectedModel.value.service.apiUrl,
+        apiKey: selectedModel.value.service.apiKey,
+      }
+    } else {
+      metadata.model = 'mcp-default'
+    }
+
     const response = await fetch('http://localhost:3002/mcp/chat/send', {
       method: 'POST',
       headers: {
@@ -418,10 +529,7 @@ const sendMessage = async () => {
       body: JSON.stringify({
         content,
         conversationId: currentConversationId.value,
-        metadata: {
-          model: 'mcp-default',
-          stream: true,
-        },
+        metadata,
       }),
     })
 
@@ -528,6 +636,40 @@ const loadConversations = async () => {
   }
 }
 
+// 加载模型服务配置
+const loadModelServices = () => {
+  try {
+    const storage = createSettingsStorage(STORAGE_KEYS.MODEL_SERVICES)
+    const savedData = storage.load()
+
+    if (savedData && savedData.services && Array.isArray(savedData.services)) {
+      modelServices.value = savedData.services
+      console.log('[MCP Chat] 模型服务配置加载成功:', modelServices.value.length, '个服务')
+
+      // 如果没有选中的模型，自动选择第一个启用的模型
+      if (!selectedModel.value && enabledModelServices.value.length > 0) {
+        const firstService = enabledModelServices.value[0]
+        const firstModel = firstService.models.find(m => m.enabled)
+        if (firstModel) {
+          selectModel(firstService, firstModel)
+        }
+      }
+    } else {
+      console.log('[MCP Chat] 没有找到保存的模型服务配置')
+    }
+  } catch (error) {
+    console.error('[MCP Chat] 加载模型服务配置失败:', error)
+  }
+}
+
+// 选择模型
+const selectModel = (service: ModelService, model: ModelInfo) => {
+  selectedModel.value = { service, model }
+  showModelSelector.value = false
+  console.log('[MCP Chat] 选择模型:', service.name, '-', model.name)
+  antMessage.success(`已选择模型: ${service.name} - ${model.name}`)
+}
+
 // 定期更新统计信息
 let statsInterval: NodeJS.Timeout | null = null
 
@@ -535,6 +677,7 @@ onMounted(() => {
   connectToMCPServer()
   loadServerStats()
   loadConversations()
+  loadModelServices()
 
   // 每5秒更新一次统计信息
   statsInterval = setInterval(() => {
