@@ -44,11 +44,13 @@ import {
   ExpandOutlined,
   MessageOutlined,
   RobotOutlined,
+  ApiOutlined,
 } from '@ant-design/icons-vue'
 
 // 菜单项
 const menuItems = [
   { key: 'model', label: '模型服务', icon: RobotOutlined, path: '/settings/model' },
+  { key: 'mcp', label: 'MCP 服务器', icon: ApiOutlined, path: '/settings/mcp' },
   { key: 'display', label: '显示设置', icon: DesktopOutlined, path: '/settings/display' },
   { key: 'zoom', label: '缩放设置', icon: ExpandOutlined, path: '/settings/zoom' },
   { key: 'topic', label: '话题设置', icon: MessageOutlined, path: '/settings/topic' },

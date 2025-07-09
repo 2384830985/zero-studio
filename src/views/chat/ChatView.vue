@@ -94,6 +94,86 @@
             </template>
           </a-dropdown>
 
+          <!-- MCP 选择器 -->
+          <a-dropdown
+            v-model:open="showMCPSelector"
+            placement="bottomRight"
+            :trigger="['click']"
+          >
+            <a-button size="small">
+              <template #icon>
+                <ApiOutlined />
+              </template>
+              {{ selectedMCPServers.length > 0 ? `${selectedMCPServers.length} 个 MCP` : '选择 MCP' }}
+            </a-button>
+            <template #overlay>
+              <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-4 min-w-[300px] max-h-80 overflow-y-auto">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-sm font-medium text-gray-900">MCP 服务器</span>
+                  <a-button
+                    type="link"
+                    size="small"
+                    @click="$router.push('/settings/mcp')"
+                  >
+                    管理
+                  </a-button>
+                </div>
+
+                <div
+                  v-if="enabledMCPServers.length === 0"
+                  class="text-center py-4"
+                >
+                  <div class="text-gray-400 mb-2">
+                    <ApiOutlined class="text-2xl" />
+                  </div>
+                  <p class="text-sm text-gray-500 mb-3">
+                    暂无可用的 MCP 服务器
+                  </p>
+                  <a-button
+                    type="primary"
+                    size="small"
+                    @click="$router.push('/settings/mcp')"
+                  >
+                    添加 MCP 服务器
+                  </a-button>
+                </div>
+
+                <div
+                  v-else
+                  class="space-y-2"
+                >
+                  <div
+                    v-for="server in enabledMCPServers"
+                    :key="server.id"
+                    class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    @click="toggleMCPServer(server.id)"
+                  >
+                    <div class="flex items-center space-x-3">
+                      <div
+                        class="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
+                        :style="{ backgroundColor: server.color || '#6b7280' }"
+                      >
+                        {{ server.name.charAt(0).toUpperCase() }}
+                      </div>
+                      <div>
+                        <div class="text-sm font-medium text-gray-900">
+                          {{ server.name }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {{ server.tools.length }} 个工具
+                        </div>
+                      </div>
+                    </div>
+                    <a-checkbox
+                      :checked="selectedMCPServers.includes(server.id)"
+                      @click.stop="toggleMCPServer(server.id)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </template>
+          </a-dropdown>
+
           <a-button
             size="small"
             @click="showStats = !showStats"
@@ -313,8 +393,10 @@ import {
   SettingOutlined,
   BulbOutlined,
   MessageOutlined,
+  ApiOutlined,
 } from '@ant-design/icons-vue'
 import { createSettingsStorage, STORAGE_KEYS } from '../../utils/settingsStorage'
+import { getEnabledMCPServers } from '../../utils/mcpManager'
 
 interface MCPMessage {
   id: string
@@ -379,6 +461,10 @@ const modelServices = ref<ModelService[]>([])
 const selectedModel = ref<{ service: ModelService; model: ModelInfo } | null>(null)
 const showModelSelector = ref(false)
 
+// MCP 相关数据
+const selectedMCPServers = ref<string[]>([])
+const showMCPSelector = ref(false)
+
 // DOM 引用
 const messagesContainer = ref<HTMLElement>()
 
@@ -391,6 +477,11 @@ const isConnected = computed(() => connectionStatus.value === 'connected')
 // 获取启用的模型服务
 const enabledModelServices = computed(() => {
   return modelServices.value.filter(service => service.enabled && service.models.some(m => m.enabled))
+})
+
+// 获取启用的MCP服务器
+const enabledMCPServers = computed(() => {
+  return getEnabledMCPServers()
 })
 
 // 格式化时间
@@ -506,6 +597,8 @@ const connectToMCPServer = async () => {
   }
 }
 
+console.log('selectedMCPServers', enabledMCPServers.value)
+
 // 发送消息
 const sendMessage = async () => {
   if (!inputMessage.value.trim() || !isConnected.value || isSending.value) {
@@ -513,7 +606,6 @@ const sendMessage = async () => {
   }
 
   const content = inputMessage.value.trim()
-  inputMessage.value = ''
   isSending.value = true
 
   try {
@@ -548,6 +640,9 @@ const sendMessage = async () => {
         content,
         conversationId: currentConversationId.value,
         metadata,
+        enabledMCPServers: enabledMCPServers.value.map(item => {
+          return {...item}
+        }),
       }),
     })
 
@@ -558,6 +653,9 @@ const sendMessage = async () => {
     const result = await response.json()
     console.log('[MCP Chat] Message sent:', result)
 
+    // 请求成功后清空输入框
+    inputMessage.value = ''
+
     if (result.conversationId && result.conversationId !== currentConversationId.value) {
       currentConversationId.value = result.conversationId
     }
@@ -565,7 +663,6 @@ const sendMessage = async () => {
   } catch (error) {
     console.error('[MCP Chat] Failed to send message:', error)
     antMessage.error('发送消息失败')
-    inputMessage.value = content // 恢复输入内容
   } finally {
     isSending.value = false
   }
@@ -686,6 +783,20 @@ const selectModel = (service: ModelService, model: ModelInfo) => {
   showModelSelector.value = false
   console.log('[MCP Chat] 选择模型:', service.name, '-', model.name)
   antMessage.success(`已选择模型: ${service.name} - ${model.name}`)
+}
+
+// 切换MCP服务器选择
+const toggleMCPServer = (serverId: string) => {
+  const index = selectedMCPServers.value.indexOf(serverId)
+  if (index > -1) {
+    selectedMCPServers.value.splice(index, 1)
+  } else {
+    selectedMCPServers.value.push(serverId)
+  }
+
+  const serverName = enabledMCPServers.value.find(s => s.id === serverId)?.name || serverId
+  const action = index > -1 ? '取消选择' : '选择'
+  console.log(`[MCP Chat] ${action} MCP 服务器:`, serverName)
 }
 
 // 定期更新统计信息

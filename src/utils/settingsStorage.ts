@@ -97,6 +97,7 @@ export const STORAGE_KEYS = {
   ZOOM_SETTINGS: 'zoom-settings-config',
   TOPIC_SETTINGS: 'topic-settings-config',
   ASSISTANT_SETTINGS: 'assistant-settings-config',
+  MCP_SETTINGS: 'mcp-settings-config',
 } as const
 
 /**

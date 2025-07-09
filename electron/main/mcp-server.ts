@@ -38,11 +38,23 @@ export interface MCPStreamChunk {
   }>
 }
 
+export interface MCPServerInfo {
+  id: string
+  name: string
+  description?: string
+  version?: string
+  status: 'active' | 'inactive' | 'error'
+  endpoint?: string
+  capabilities?: string[]
+  lastActivity?: number
+}
+
 export interface MCPServerConfig {
   port: number
   enableCors?: boolean
   maxConnections?: number
   streamingEnabled?: boolean
+  enabledMCPServers?: MCPServerInfo[]
   meituanAIGC?: {
     apiUrl?: string
     appId: string
@@ -59,12 +71,14 @@ export class MCPServer {
   private config: MCPServerConfig
   private planAgent: PlanAndExecuteAgent | null = null
   private executionPlans: Map<string, ExecutionPlan> = new Map()
+  private enabledMCPServers: Map<string, MCPServerInfo> = new Map()
 
   constructor(config: MCPServerConfig) {
     this.config = {
       enableCors: true,
       maxConnections: 100,
       streamingEnabled: true,
+      enabledMCPServers: [],
       ...config,
     }
     this.port = config.port
@@ -72,6 +86,7 @@ export class MCPServer {
     this.setupMiddleware()
     this.setupRoutes()
     this.initializePlanAgent()
+    this.initializeEnabledMCPServers()
   }
 
   private initializePlanAgent() {
@@ -101,6 +116,25 @@ export class MCPServer {
     } catch (error) {
       console.error('[MCP Server] Failed to initialize PlanAndExecute agent:', error)
       this.planAgent = null
+    }
+  }
+
+  private initializeEnabledMCPServers() {
+    try {
+      // 初始化启用的 MCP 服务器列表
+      if (this.config.enabledMCPServers && this.config.enabledMCPServers.length > 0) {
+        this.config.enabledMCPServers.forEach(server => {
+          this.enabledMCPServers.set(server.id, {
+            ...server,
+            lastActivity: Date.now(),
+          })
+        })
+        console.log(`[MCP Server] Initialized ${this.enabledMCPServers.size} enabled MCP servers`)
+      } else {
+        console.log('[MCP Server] No enabled MCP servers configured')
+      }
+    } catch (error) {
+      console.error('[MCP Server] Failed to initialize enabled MCP servers:', error)
     }
   }
 
@@ -324,8 +358,185 @@ export class MCPServer {
       res.json({ conversations })
     })
 
+    // MCP 服务器管理路由
+    this.setupMCPServerRoutes()
+
     // Plan and Execute 路由
     this.setupPlanRoutes()
+  }
+
+  private setupMCPServerRoutes() {
+    // 获取所有启用的 MCP 服务器列表
+    this.app.get('/mcp/servers', (req: any, res: any) => {
+      const servers = Array.from(this.enabledMCPServers.values())
+      res.json({
+        servers,
+        total: servers.length,
+        timestamp: Date.now(),
+      })
+    })
+
+    // 获取特定 MCP 服务器信息
+    this.app.get('/mcp/servers/:serverId', (req: any, res: any) => {
+      const { serverId } = req.params
+      const server = this.enabledMCPServers.get(serverId)
+
+      if (!server) {
+        return res.status(404).json({ error: 'MCP server not found' })
+      }
+
+      res.json({ server })
+    })
+
+    // 添加新的 MCP 服务器
+    this.app.post('/mcp/servers', (req: any, res: any) => {
+      try {
+        const serverInfo: MCPServerInfo = req.body
+
+        if (!serverInfo.id || !serverInfo.name) {
+          return res.status(400).json({ error: 'Server ID and name are required' })
+        }
+
+        if (this.enabledMCPServers.has(serverInfo.id)) {
+          return res.status(409).json({ error: 'Server with this ID already exists' })
+        }
+
+        const newServer: MCPServerInfo = {
+          ...serverInfo,
+          status: serverInfo.status || 'inactive',
+          lastActivity: Date.now(),
+        }
+
+        this.enabledMCPServers.set(serverInfo.id, newServer)
+
+        console.log(`[MCP Server] Added new MCP server: ${serverInfo.name} (${serverInfo.id})`)
+
+        res.json({
+          success: true,
+          server: newServer,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error adding MCP server:', error)
+        res.status(500).json({
+          error: 'Failed to add MCP server',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 更新 MCP 服务器信息
+    this.app.put('/mcp/servers/:serverId', (req: any, res: any) => {
+      try {
+        const { serverId } = req.params
+        const updateInfo = req.body
+
+        const existingServer = this.enabledMCPServers.get(serverId)
+        if (!existingServer) {
+          return res.status(404).json({ error: 'MCP server not found' })
+        }
+
+        const updatedServer: MCPServerInfo = {
+          ...existingServer,
+          ...updateInfo,
+          id: serverId, // 确保ID不被修改
+          lastActivity: Date.now(),
+        }
+
+        this.enabledMCPServers.set(serverId, updatedServer)
+
+        console.log(`[MCP Server] Updated MCP server: ${updatedServer.name} (${serverId})`)
+
+        res.json({
+          success: true,
+          server: updatedServer,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error updating MCP server:', error)
+        res.status(500).json({
+          error: 'Failed to update MCP server',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 删除 MCP 服务器
+    this.app.delete('/mcp/servers/:serverId', (req: any, res: any) => {
+      try {
+        const { serverId } = req.params
+
+        const server = this.enabledMCPServers.get(serverId)
+        if (!server) {
+          return res.status(404).json({ error: 'MCP server not found' })
+        }
+
+        this.enabledMCPServers.delete(serverId)
+
+        console.log(`[MCP Server] Removed MCP server: ${server.name} (${serverId})`)
+
+        res.json({
+          success: true,
+          removedServer: server,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error removing MCP server:', error)
+        res.status(500).json({
+          error: 'Failed to remove MCP server',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 更新 MCP 服务器状态
+    this.app.patch('/mcp/servers/:serverId/status', (req: any, res: any) => {
+      try {
+        const { serverId } = req.params
+        const { status } = req.body
+
+        if (!['active', 'inactive', 'error'].includes(status)) {
+          return res.status(400).json({ error: 'Invalid status. Must be active, inactive, or error' })
+        }
+
+        const server = this.enabledMCPServers.get(serverId)
+        if (!server) {
+          return res.status(404).json({ error: 'MCP server not found' })
+        }
+
+        const updatedServer: MCPServerInfo = {
+          ...server,
+          status,
+          lastActivity: Date.now(),
+        }
+
+        this.enabledMCPServers.set(serverId, updatedServer)
+
+        console.log(`[MCP Server] Updated status of MCP server ${server.name} to ${status}`)
+
+        res.json({
+          success: true,
+          server: updatedServer,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error updating MCP server status:', error)
+        res.status(500).json({
+          error: 'Failed to update MCP server status',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 获取 MCP 服务器统计信息
+    this.app.get('/mcp/servers/stats', (req: any, res: any) => {
+      const servers = Array.from(this.enabledMCPServers.values())
+      const stats = {
+        total: servers.length,
+        active: servers.filter(s => s.status === 'active').length,
+        inactive: servers.filter(s => s.status === 'inactive').length,
+        error: servers.filter(s => s.status === 'error').length,
+        lastUpdated: Date.now(),
+      }
+
+      res.json({ stats })
+    })
   }
 
   private setupPlanRoutes() {

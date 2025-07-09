@@ -4,6 +4,7 @@ import ChatView from '../views/chat/ChatView.vue'
 import TranslateView from '../views/translate/TranslateView.vue'
 import SettingsView from '../views/settings/SettingsView.vue'
 import ModelServiceSettings from '../views/settings/ModelServiceSettings.vue'
+import MCPSettings from '../views/settings/MCPSettings.vue'
 import DisplaySettings from '../views/settings/DisplaySettings.vue'
 import ZoomSettings from '../views/settings/ZoomSettings.vue'
 import TopicSettings from '../views/settings/TopicSettings.vue'
@@ -43,6 +44,11 @@ const routes = [
             path: 'model',
             name: 'ModelServiceSettings',
             component: ModelServiceSettings,
+          },
+          {
+            path: 'mcp',
+            name: 'MCPSettings',
+            component: MCPSettings,
           },
           {
             path: 'display',
