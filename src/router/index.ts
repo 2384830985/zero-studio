@@ -9,7 +9,6 @@ import ZoomSettings from '../views/settings/ZoomSettings.vue'
 import TopicSettings from '../views/settings/TopicSettings.vue'
 import AssistantSettings from '../views/settings/AssistantSettings.vue'
 import DifyView from '../views/dify/DifyView.vue'
-import MCPChatView from '../views/mcp/MCPChatView.vue'
 
 const routes = [
   {
@@ -34,11 +33,6 @@ const routes = [
         path: 'dify',
         name: 'Dify',
         component: DifyView,
-      },
-      {
-        path: 'mcp',
-        name: 'MCP',
-        component: MCPChatView,
       },
       {
         path: 'settings',

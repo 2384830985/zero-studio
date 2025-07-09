@@ -1,291 +1,298 @@
 <template>
-  <div class="flex h-full w-full bg-gray-100">
-    <!-- 中间聊天列表 -->
-    <div class="w-80 min-w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
-      <!-- 顶部标签 -->
-      <div class="flex px-4 pt-4 border-b border-gray-100">
-        <div class="px-4 py-2 cursor-pointer text-gray-600 rounded-md transition-all bg-gray-100 text-blue-500">
-          助手
+  <div class="h-full flex flex-col bg-gray-50">
+    <!-- 顶部状态栏 -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <h1 class="text-xl font-semibold text-gray-900">
+            聊天
+          </h1>
+          <div class="flex items-center space-x-2">
+            <div
+              :class="[
+                'w-2 h-2 rounded-full',
+                connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'
+              ]"
+            />
+            <span class="text-sm text-gray-600">
+              {{ connectionStatus === 'connected' ? '已连接' : '未连接' }}
+            </span>
+          </div>
         </div>
-        <div class="px-4 py-2 cursor-pointer text-gray-600 rounded-md transition-all hover:bg-gray-100">
-          话题
-        </div>
-        <div class="px-4 py-2 cursor-pointer text-gray-600 rounded-md transition-all hover:bg-gray-100">
-          设置
+        <div class="flex items-center space-x-2">
+          <!-- 模式切换按钮 -->
+          <a-button
+            size="small"
+            :type="usePlanMode ? 'primary' : 'default'"
+            @click="usePlanMode = !usePlanMode"
+          >
+            <template #icon>
+              <BulbOutlined v-if="usePlanMode" />
+              <MessageOutlined v-else />
+            </template>
+            {{ usePlanMode ? '计划模式' : '聊天模式' }}
+          </a-button>
+
+          <!-- 模型选择器 -->
+          <a-dropdown
+            v-model:open="showModelSelector"
+            placement="bottomRight"
+            :trigger="['click']"
+          >
+            <a-button size="small">
+              <template #icon>
+                <SettingOutlined />
+              </template>
+              {{ selectedModel ? `${selectedModel.service.name} - ${selectedModel.model.name}` : '选择模型' }}
+            </a-button>
+            <template #overlay>
+              <a-menu
+                class="max-h-80 overflow-y-auto"
+                style="min-width: 300px;"
+              >
+                <template
+                  v-for="service in enabledModelServices"
+                  :key="service.id"
+                >
+                  <a-menu-item-group :title="service.name">
+                    <a-menu-item
+                      v-for="model in service.models.filter(m => m.enabled)"
+                      :key="`${service.id}-${model.name}`"
+                      @click="selectModel(service, model)"
+                    >
+                      <div class="flex items-center space-x-3">
+                        <div
+                          class="w-4 h-4 rounded-full flex-shrink-0"
+                          :style="{ backgroundColor: model.color || service.color }"
+                        />
+                        <div class="flex-1 min-w-0">
+                          <div class="text-sm font-medium text-gray-900 truncate">
+                            {{ model.name }}
+                          </div>
+                          <div class="text-xs text-gray-500 truncate">
+                            {{ model.description }}
+                          </div>
+                        </div>
+                        <div
+                          v-if="selectedModel?.service.id === service.id && selectedModel?.model.name === model.name"
+                          class="text-blue-500 text-xs"
+                        >
+                          ✓
+                        </div>
+                      </div>
+                    </a-menu-item>
+                  </a-menu-item-group>
+                </template>
+                <a-menu-divider v-if="enabledModelServices.length > 0" />
+                <a-menu-item @click="$router.push('/settings/model')">
+                  <div class="flex items-center space-x-2 text-gray-500">
+                    <SettingOutlined />
+                    <span>管理模型服务</span>
+                  </div>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+
+          <a-button
+            size="small"
+            @click="showStats = !showStats"
+          >
+            统计信息
+          </a-button>
+          <a-button
+            size="small"
+            :disabled="!isConnected"
+            @click="reconnect"
+          >
+            重连
+          </a-button>
         </div>
       </div>
 
-      <!-- 聊天项目 -->
-      <div class="flex-1 p-4">
-        <div class="flex items-center p-3 rounded-lg cursor-pointer mb-2 transition-all bg-blue-50">
-          <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3 text-base">
-            😊
+      <!-- 统计信息面板 -->
+      <div
+        v-if="showStats && serverStats"
+        class="mt-4 p-4 bg-gray-50 rounded-lg"
+      >
+        <div class="grid grid-cols-4 gap-4 text-sm">
+          <div>
+            <span class="text-gray-600">连接数:</span>
+            <span class="ml-2 font-medium">{{ serverStats.connectedClients }}</span>
           </div>
-          <div class="flex-1">
-            <div class="text-sm text-gray-800">
-              默认助手
-            </div>
+          <div>
+            <span class="text-gray-600">对话数:</span>
+            <span class="ml-2 font-medium">{{ serverStats.totalConversations }}</span>
           </div>
-          <div class="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
-            1
+          <div>
+            <span class="text-gray-600">消息数:</span>
+            <span class="ml-2 font-medium">{{ serverStats.totalMessages }}</span>
           </div>
-        </div>
-
-        <div class="flex items-center p-3 text-gray-600 cursor-pointer rounded-lg transition-all hover:bg-gray-50">
-          <PlusOutlined />
-          <span class="ml-2 text-sm">添加助手</span>
+          <div>
+            <span class="text-gray-600">端口:</span>
+            <span class="ml-2 font-medium">{{ serverStats.port }}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 右侧聊天区域 -->
-    <div class="flex-1 flex flex-col bg-white min-w-0 overflow-hidden">
-      <!-- 连接状态 -->
-      <div class="px-6 py-2 border-b border-gray-100 bg-gray-50">
-        <div class="flex items-center gap-2 text-sm">
-          <span :class="['w-2 h-2 rounded-full', connectionStatusClass]" />
-          <span class="text-gray-600">{{ connectionStatusText }}</span>
+    <!-- 聊天内容区域 -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- 对话列表 -->
+      <div class="w-80 bg-white border-r border-gray-200 flex flex-col">
+        <div class="p-4 border-b border-gray-200">
+          <a-button
+            type="primary"
+            block
+            @click="startNewConversation"
+          >
+            <PlusOutlined />
+            新建对话
+          </a-button>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+          <div
+            v-for="conv in conversations"
+            :key="conv.id"
+            :class="[
+              'p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50',
+              currentConversationId === conv.id ? 'bg-blue-50 border-blue-200' : ''
+            ]"
+            @click="switchConversation(conv.id)"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">
+                  对话 {{ conv.id.slice(-8) }}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ conv.messageCount }} 条消息
+                </p>
+              </div>
+              <div class="text-xs text-gray-400">
+                {{ formatTime(conv.lastActivity) }}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 聊天内容 -->
-      <div
-        ref="messagesContainer"
-        class="flex-1 overflow-y-auto p-6"
-      >
-        <!-- 欢迎消息 -->
-        <div
-          v-if="messages.length === 0 && !streamingMessage"
-          class="flex items-center justify-center h-full"
-        >
-          <div class="text-gray-600 text-base text-center">
-            你好，我是默认助手，你可以立刻开始跟我聊天
-          </div>
-        </div>
-
+      <!-- 聊天区域 -->
+      <div class="flex-1 flex flex-col">
         <!-- 消息列表 -->
         <div
-          v-for="message in messages"
-          :key="message.id"
-          class="mb-6"
+          ref="messagesContainer"
+          class="flex-1 overflow-y-auto p-6 space-y-4"
         >
-          <div :class="['flex', message.role === 'user' ? 'justify-end' : 'justify-start']">
+          <!-- 欢迎消息 -->
+          <div
+            v-if="messages.length === 0 && !streamingMessage"
+            class="flex items-center justify-center h-full"
+          >
+            <div class="text-center">
+              <RobotOutlined class="text-6xl text-gray-400 mb-4" />
+              <h3 class="text-lg font-medium text-gray-900 mb-2">
+                {{ usePlanMode ? '计划执行助手' : '聊天助手' }}
+              </h3>
+              <p class="text-gray-500">
+                {{ usePlanMode ? '输入目标任务，AI 将制定详细的执行计划并逐步执行' : '支持 Streamable HTTP 协议的 MCP 服务器' }}
+              </p>
+            </div>
+          </div>
+
+          <!-- 消息列表 -->
+          <div
+            v-for="message in messages"
+            :key="message.id"
+            class="flex"
+            :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
+          >
             <div
-              :class="['max-w-[70%] rounded-2xl px-4 py-3',
-                       message.role === 'user'
-                         ? 'bg-blue-500 text-white'
-                         : 'bg-gray-100 text-gray-800'
+              :class="[
+                'max-w-[70%] rounded-2xl px-4 py-3',
+                message.role === 'user'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-white text-gray-800 shadow-sm border border-gray-200'
               ]"
             >
               <div
-                class="text-sm leading-relaxed"
+                class="text-sm leading-relaxed whitespace-pre-wrap"
                 v-html="formatMessage(message.content)"
               />
               <div
-                :class="['text-xs mt-2 opacity-70',
-                         message.role === 'user' ? 'text-right' : 'text-left'
+                :class="[
+                  'text-xs mt-2 opacity-70',
+                  message.role === 'user' ? 'text-right text-blue-100' : 'text-left text-gray-500'
                 ]"
               >
                 {{ formatTime(message.timestamp) }}
+                <span
+                  v-if="message.metadata?.model"
+                  class="ml-2"
+                >
+                  · {{ message.metadata.model }}
+                </span>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- 流式消息 -->
-        <div
-          v-if="streamingMessage"
-          class="mb-6"
-        >
-          <div class="flex justify-start">
-            <div class="max-w-[70%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-800 border-2 border-blue-200">
+          <!-- 流式消息 -->
+          <div
+            v-if="streamingMessage"
+            class="flex justify-start"
+          >
+            <div class="max-w-[70%] bg-white text-gray-800 shadow-sm border border-gray-200 rounded-2xl px-4 py-3">
               <div
-                class="text-sm leading-relaxed"
+                class="text-sm leading-relaxed whitespace-pre-wrap"
                 v-html="formatMessage(streamingMessage.content)"
               />
-              <div class="flex items-center gap-1 mt-2">
-                <div class="typing-indicator">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <span class="text-xs text-gray-500 ml-2">正在输入...</span>
+              <div class="text-xs mt-2 text-gray-500 flex items-center">
+                <LoadingOutlined class="mr-1" />
+                正在输入...
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Plan-and-Execute 执行计划显示 -->
-      <div
-        v-if="currentPlan && planAndExecuteMode"
-        class="px-6 py-4 border-t border-gray-100 bg-blue-50"
-      >
-        <div class="mb-3">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-medium text-gray-900">
-              执行计划
-            </h3>
-            <a-tag :color="getPlanStatusColor(currentPlan.status)">
-              {{ getPlanStatusText(currentPlan.status) }}
-            </a-tag>
-          </div>
-          <p class="text-xs text-gray-600 mb-3">
-            {{ currentPlan.question }}
-          </p>
-
-          <!-- 步骤列表 -->
-          <div class="space-y-2">
-            <div
-              v-for="(step, index) in currentPlan.steps"
-              :key="step.id"
-              class="flex items-start gap-3 p-2 rounded-lg bg-white border"
-              :class="getStepBorderClass(step.status)"
-            >
-              <div class="flex-shrink-0 mt-1">
-                <div
-                  class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium"
-                  :class="getStepIconClass(step.status)"
-                >
-                  <template v-if="step.status === 'completed'">
-                    <CheckOutlined />
-                  </template>
-                  <template v-else-if="step.status === 'failed'">
-                    <CloseOutlined />
-                  </template>
-                  <template v-else-if="step.status === 'executing'">
-                    <LoadingOutlined class="animate-spin" />
-                  </template>
-                  <template v-else>
-                    {{ index + 1 }}
-                  </template>
-                </div>
+        <!-- 输入区域 -->
+        <div class="border-t border-gray-200 bg-white p-4">
+          <div class="bg-gray-50 rounded-xl p-3">
+            <a-textarea
+              v-model:value="inputMessage"
+              :placeholder="usePlanMode ? '输入目标任务，AI 将制定执行计划... (Shift+Enter 换行，Enter 发送)' : '输入消息... (Shift+Enter 换行，Enter 发送)'"
+              :auto-size="{ minRows: 1, maxRows: 4 }"
+              class="!border-none !bg-transparent !shadow-none !p-0 text-sm"
+              :disabled="!isConnected || isSending"
+              @keydown="handleKeyDown"
+            />
+            <div class="flex justify-between items-center mt-2">
+              <div class="flex gap-3">
+                <PaperClipOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
+                <LinkOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
+                <GlobalOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
               </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm text-gray-900 mb-1">
-                  {{ step.description }}
-                </p>
-                <div
-                  v-if="step.result"
-                  class="text-xs text-gray-600 bg-gray-50 p-2 rounded"
+              <div class="flex items-center gap-2">
+                <a-button
+                  size="small"
+                  :disabled="messages.length === 0"
+                  @click="clearCurrentConversation"
                 >
-                  {{ step.result.substring(0, 100) }}{{ step.result.length > 100 ? '...' : '' }}
-                </div>
-                <div
-                  v-if="step.error"
-                  class="text-xs text-red-600 bg-red-50 p-2 rounded"
+                  清空
+                </a-button>
+                <a-button
+                  type="primary"
+                  shape="circle"
+                  :loading="isSending"
+                  :disabled="!isConnected || !inputMessage.trim()"
+                  @click="sendMessage"
                 >
-                  错误: {{ step.error }}
-                </div>
-                <div
-                  v-if="step.startTime"
-                  class="text-xs text-gray-400 mt-1"
-                >
-                  {{ formatTime(step.startTime) }}
-                  <span v-if="step.endTime"> - {{ formatTime(step.endTime) }}</span>
-                </div>
+                  <template #icon>
+                    <ArrowUpOutlined />
+                  </template>
+                </a-button>
               </div>
             </div>
           </div>
-
-          <!-- 最终答案 -->
-          <div
-            v-if="currentPlan.finalAnswer"
-            class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg"
-          >
-            <h4 class="text-sm font-medium text-green-900 mb-2">
-              最终答案
-            </h4>
-            <p class="text-sm text-green-800">
-              {{ currentPlan.finalAnswer }}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 输入区域 -->
-      <div class="px-6 py-4 border-t border-gray-100 flex-shrink-0">
-        <!-- 模式切换 -->
-        <div class="flex items-center gap-3 mb-3">
-          <span class="text-sm text-gray-600">模式:</span>
-          <a-radio-group
-            v-model:value="chatMode"
-            size="small"
-          >
-            <a-radio-button value="normal">
-              普通聊天
-            </a-radio-button>
-            <a-radio-button value="plan-execute">
-              Plan & Execute
-            </a-radio-button>
-          </a-radio-group>
-          <a-tooltip
-            v-if="chatMode === 'plan-execute'"
-            title="Plan-and-Execute 模式会将复杂问题分解为多个步骤逐步执行"
-          >
-            <QuestionCircleOutlined class="text-gray-400" />
-          </a-tooltip>
-        </div>
-
-        <div class="bg-gray-50 rounded-xl p-3 mb-3">
-          <!-- :disabled="!isConnected || isSending || (planAndExecuteMode && currentPlan?.status === 'executing')" -->
-          <a-textarea
-            v-model:value="inputMessage"
-            :placeholder="getInputPlaceholder()"
-            :auto-size="{ minRows: chatMode === 'plan-execute' ? 2 : 1, maxRows: 4 }"
-            class="!border-none !bg-transparent !shadow-none !p-0 text-sm"
-            @keydown="handleKeyDown"
-          />
-          <div class="flex gap-3 mt-2">
-            <PaperClipOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-            <LinkOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-            <AudioOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-            <GlobalOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-            <FileImageOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-            <VideoCameraOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-            <UserOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-            <ClockCircleOutlined class="text-gray-400 cursor-pointer text-base transition-colors hover:text-blue-500" />
-          </div>
-        </div>
-        <div class="flex justify-between items-center">
-          <div class="flex gap-2">
-            <TranslationOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
-            <a-button
-              size="small"
-              :disabled="messages.length === 0 && !currentPlan"
-              class="text-xs"
-              @click="clearChat"
-            >
-              清空
-            </a-button>
-            <a-button
-              size="small"
-              :disabled="isConnected"
-              class="text-xs"
-              @click="reconnect"
-            >
-              重连
-            </a-button>
-            <a-button
-              v-if="planAndExecuteMode && currentPlan?.status === 'executing'"
-              size="small"
-              class="text-xs"
-              @click="stopPlanExecution"
-            >
-              停止执行
-            </a-button>
-          </div>
-          <!-- :disabled="!isConnected || !inputMessage.trim() || (planAndExecuteMode && currentPlan?.status === 'executing')" -->
-          <a-button
-            type="primary"
-            shape="circle"
-            :loading="isSending"
-            @click="sendMessage"
-          >
-            <template #icon>
-              <ArrowUpOutlined />
-            </template>
-          </a-button>
         </div>
       </div>
     </div>
@@ -293,259 +300,114 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message as antMessage } from 'ant-design-vue'
 import {
   PlusOutlined,
+  RobotOutlined,
+  LoadingOutlined,
   PaperClipOutlined,
   LinkOutlined,
-  AudioOutlined,
   GlobalOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined,
-  UserOutlined,
-  ClockCircleOutlined,
-  TranslationOutlined,
   ArrowUpOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  LoadingOutlined,
-  QuestionCircleOutlined,
+  SettingOutlined,
+  BulbOutlined,
+  MessageOutlined,
 } from '@ant-design/icons-vue'
-import {
-  createDifyClient,
-  loadDifyConfig,
-  type ExecutionPlan,
-  type DifyClient,
-} from '../../utils/dify-client'
+import { createSettingsStorage, STORAGE_KEYS } from '../../utils/settingsStorage'
 
-interface ChatMessage {
+interface MCPMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: number
+  metadata?: {
+    model?: string
+    temperature?: number
+    maxTokens?: number
+    stream?: boolean
+  }
 }
 
-interface StreamingMessage {
+interface MCPConversation {
   id: string
-  role: 'assistant'
-  content: string
-  timestamp: number
-  isComplete: boolean
+  messages: MCPMessage[]
+  messageCount: number
+  lastActivity: number
+}
+
+interface MCPServerStats {
+  connectedClients: number
+  totalConversations: number
+  totalMessages: number
+  port: number
+  config: object
+}
+
+interface ModelService {
+  id: string
+  name: string
+  description: string
+  color: string
+  enabled: boolean
+  apiKey: string
+  apiUrl: string
+  models: ModelInfo[]
+}
+
+interface ModelInfo {
+  name: string
+  description: string
+  enabled: boolean
+  color: string
 }
 
 // 响应式数据
-const messages = ref<ChatMessage[]>([])
-const streamingMessage = ref<StreamingMessage | null>(null)
+const messages = ref<MCPMessage[]>([])
+const streamingMessage = ref<MCPMessage | null>(null)
 const inputMessage = ref('')
 const isSending = ref(false)
-const isConnected = ref(false)
-const connectionStatus = ref<'connected' | 'connecting' | 'disconnected'>('disconnected')
+const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>('disconnected')
+const currentConversationId = ref<string>('')
+const conversations = ref<MCPConversation[]>([])
+const serverStats = ref<MCPServerStats | null>(null)
+const showStats = ref(false)
+const usePlanMode = ref(false)
+
+// 模型相关数据
+const modelServices = ref<ModelService[]>([])
+const selectedModel = ref<{ service: ModelService; model: ModelInfo } | null>(null)
+const showModelSelector = ref(false)
+
+// DOM 引用
 const messagesContainer = ref<HTMLElement>()
 
-// Plan-and-Execute 相关
-const chatMode = ref<'normal' | 'plan-execute'>('normal')
-const currentPlan = ref<ExecutionPlan | null>(null)
-const difyClient = ref<DifyClient | null>(null)
-
-// SSE 连接
-const eventSource: EventSource | null = null
+// EventSource 连接
+let eventSource: EventSource | null = null
 
 // 计算属性
-const connectionStatusText = computed(() => {
-  switch (connectionStatus.value) {
-  case 'connected':
-    return '已连接到服务器'
-  case 'connecting':
-    return '正在连接服务器...'
-  case 'disconnected':
-    return '服务器连接断开'
-  default:
-    return '未知状态'
-  }
+const isConnected = computed(() => connectionStatus.value === 'connected')
+
+// 获取启用的模型服务
+const enabledModelServices = computed(() => {
+  return modelServices.value.filter(service => service.enabled && service.models.some(m => m.enabled))
 })
 
-const connectionStatusClass = computed(() => {
-  switch (connectionStatus.value) {
-  case 'connected':
-    return 'bg-green-500'
-  case 'connecting':
-    return 'bg-yellow-500 animate-pulse'
-  case 'disconnected':
-    return 'bg-red-500'
-  default:
-    return 'bg-gray-400'
-  }
-})
-
-const planAndExecuteMode = computed(() => chatMode.value === 'plan-execute')
-
-// 连接 SSE
-const connectSSE = () => {
-  if (eventSource) {
-    eventSource.close()
-  }
-
-  connectionStatus.value = 'connecting'
-  isConnected.value = false
-
-  try {
-    // eventSource = new EventSource('http://localhost:3001/chat/stream')
-    //
-    // eventSource.onopen = () => {
-    //   console.log('SSE connection opened')
-    //   connectionStatus.value = 'connected'
-    //   isConnected.value = true
-    //   antMessage.success('已连接到聊天服务器')
-    // }
-    //
-    // eventSource.onerror = (error) => {
-    //   console.error('SSE connection error:', error)
-    //   connectionStatus.value = 'disconnected'
-    //   isConnected.value = false
-    //   antMessage.error('连接服务器失败')
-    // }
-    //
-    // // 监听不同类型的事件
-    // eventSource.addEventListener('connected', (event) => {
-    //   const data = JSON.parse(event.data)
-    //   console.log('Connected:', data)
-    // })
-    //
-    // eventSource.addEventListener('message', (event) => {
-    //   const message: ChatMessage = JSON.parse(event.data)
-    //   console.log('Received message:', message)
-    //
-    //   // 如果是流式消息的完成，清除流式显示
-    //   if (streamingMessage.value && streamingMessage.value.id === message.id) {
-    //     streamingMessage.value = null
-    //   }
-    //
-    //   // 检查是否已存在该消息
-    //   const existingIndex = messages.value.findIndex(m => m.id === message.id)
-    //   if (existingIndex >= 0) {
-    //     messages.value[existingIndex] = message
-    //   } else {
-    //     messages.value.push(message)
-    //   }
-    //
-    //   scrollToBottom()
-    // })
-    //
-    // eventSource.addEventListener('streaming', (event) => {
-    //   const data: StreamingMessage = JSON.parse(event.data)
-    //   console.log('Streaming:', data)
-    //   streamingMessage.value = data
-    //   scrollToBottom()
-    // })
-    //
-    // eventSource.addEventListener('history', (event) => {
-    //   const data = JSON.parse(event.data)
-    //   console.log('History:', data)
-    //   if (data.messages && Array.isArray(data.messages)) {
-    //     messages.value = data.messages
-    //     scrollToBottom()
-    //   }
-    // })
-    //
-    // eventSource.addEventListener('cleared', (event) => {
-    //   const data = JSON.parse(event.data)
-    //   console.log('Chat cleared:', data)
-    //   messages.value = []
-    //   streamingMessage.value = null
-    //   antMessage.info('聊天记录已清空')
-    // })
-
-  } catch (error) {
-    console.error('Failed to create SSE connection:', error)
-    connectionStatus.value = 'disconnected'
-    isConnected.value = false
-    antMessage.error('无法连接到服务器')
-  }
+// 格式化时间
+const formatTime = (timestamp: number) => {
+  return new Date(timestamp).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
-// 发送消息
-const sendMessage = async () => {
-  if (!inputMessage.value.trim() || !isConnected.value || isSending.value) {
-    return
-  }
-
-  const content = inputMessage.value.trim()
-  inputMessage.value = ''
-
-  // Plan-and-Execute 模式
-  if (planAndExecuteMode.value) {
-    await executePlanAndExecute(content)
-    return
-  }
-
-  // 普通聊天模式
-  isSending.value = true
-
-  try {
-    const response = await fetch('http://localhost:3001/chat/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const result = await response.json()
-    console.log('Message sent:', result)
-  } catch (error) {
-    console.error('Failed to send message:', error)
-    antMessage.error('发送消息失败')
-    // 恢复输入内容
-    inputMessage.value = content
-  } finally {
-    isSending.value = false
-  }
-}
-
-// 清空聊天
-const clearChat = async () => {
-  try {
-    // 清空本地数据
-    messages.value = []
-    streamingMessage.value = null
-    currentPlan.value = null
-
-    // 如果是普通聊天模式，调用服务器清空接口
-    if (!planAndExecuteMode.value) {
-      const response = await fetch('http://localhost:3001/chat/clear', {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      console.log('Chat cleared')
-    }
-
-    antMessage.success('聊天记录已清空')
-  } catch (error) {
-    console.error('Failed to clear chat:', error)
-    antMessage.error('清空聊天失败')
-  }
-}
-
-// 重新连接
-const reconnect = () => {
-  connectSSE()
-}
-
-// 处理键盘事件
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    sendMessage()
-  }
+// 格式化消息内容
+const formatMessage = (content: string) => {
+  return content
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')
 }
 
 // 滚动到底部
@@ -557,214 +419,320 @@ const scrollToBottom = () => {
   })
 }
 
-// 格式化消息内容
-const formatMessage = (content: string) => {
-  return content.replace(/\n/g, '<br>')
-}
-
-// 格式化时间
-const formatTime = (timestamp: number) => {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
-
-// Plan-and-Execute 相关方法
-const initializeDifyClient = () => {
-  const config = loadDifyConfig()
-  if (config && config.endpoint && config.apiKey) {
-    difyClient.value = createDifyClient(config)
-    isConnected.value = true
-    connectionStatus.value = 'connected'
-  } else {
-    isConnected.value = false
-    connectionStatus.value = 'disconnected'
-    antMessage.warning('请先在 Dify 页面配置 API 信息')
-  }
-}
-
-const getInputPlaceholder = () => {
-  if (!isConnected.value) {
-    return '连接中，请稍候...'
-  }
-  if (planAndExecuteMode.value) {
-    return '输入复杂问题，AI 将制定执行计划并逐步解决...'
-  }
-  return '在这里输入消息...'
-}
-
-const getPlanStatusColor = (status: string) => {
-  switch (status) {
-  case 'planning': return 'blue'
-  case 'executing': return 'orange'
-  case 'completed': return 'green'
-  case 'failed': return 'red'
-  default: return 'default'
-  }
-}
-
-const getPlanStatusText = (status: string) => {
-  switch (status) {
-  case 'planning': return '规划中'
-  case 'executing': return '执行中'
-  case 'completed': return '已完成'
-  case 'failed': return '执行失败'
-  default: return '未知状态'
-  }
-}
-
-const getStepBorderClass = (status: string) => {
-  switch (status) {
-  case 'executing': return 'border-blue-300 bg-blue-50'
-  case 'completed': return 'border-green-300 bg-green-50'
-  case 'failed': return 'border-red-300 bg-red-50'
-  default: return 'border-gray-200'
-  }
-}
-
-const getStepIconClass = (status: string) => {
-  switch (status) {
-  case 'executing': return 'bg-blue-500 text-white'
-  case 'completed': return 'bg-green-500 text-white'
-  case 'failed': return 'bg-red-500 text-white'
-  default: return 'bg-gray-200 text-gray-600'
-  }
-}
-
-const executePlanAndExecute = async (question: string) => {
-  if (!difyClient.value) {
-    antMessage.error('Dify 客户端未初始化')
-    return
+// 连接到 MCP 服务器
+const connectToMCPServer = async () => {
+  if (eventSource) {
+    eventSource.close()
   }
 
   try {
-    isSending.value = true
+    connectionStatus.value = 'connecting'
 
-    // 添加用户消息
-    const userMessage: ChatMessage = {
-      id: `user_${Date.now()}`,
-      role: 'user',
-      content: question,
-      timestamp: Date.now(),
+    const url = currentConversationId.value
+      ? `http://localhost:3002/mcp/chat/stream/${currentConversationId.value}`
+      : 'http://localhost:3002/mcp/chat/stream'
+
+    eventSource = new EventSource(url)
+
+    eventSource.onopen = () => {
+      connectionStatus.value = 'connected'
+      console.log('[MCP Chat] Connected to MCP server')
     }
-    messages.value.push(userMessage)
 
-    // 执行 Plan-and-Execute
-    await difyClient.value.planAndExecute(question, {
-      maxSteps: 5,
-      onPlanGenerated: (generatedPlan) => {
-        currentPlan.value = generatedPlan
-        scrollToBottom()
-      },
-      onStepStart: (step, plan) => {
-        currentPlan.value = plan
-        scrollToBottom()
-      },
-      onStepComplete: (step, plan) => {
-        currentPlan.value = plan
-        scrollToBottom()
-      },
-      onComplete: (completedPlan) => {
-        currentPlan.value = completedPlan
+    eventSource.onerror = (error) => {
+      console.error('[MCP Chat] EventSource error:', error)
+      connectionStatus.value = 'disconnected'
+      antMessage.error('连接 MCP 服务器失败')
+    }
 
-        // 添加最终答案作为助手消息
-        if (completedPlan.finalAnswer) {
-          const assistantMessage: ChatMessage = {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: completedPlan.finalAnswer,
-            timestamp: Date.now(),
-          }
-          messages.value.push(assistantMessage)
+    eventSource.addEventListener('connected', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[MCP Chat] Connected:', data)
+      if (data.conversationId && !currentConversationId.value) {
+        currentConversationId.value = data.conversationId
+      }
+    })
+
+    eventSource.addEventListener('history', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[MCP Chat] History received:', data)
+      if (data.messages) {
+        messages.value = data.messages
+        scrollToBottom()
+      }
+    })
+
+    eventSource.addEventListener('message', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[MCP Chat] Message received:', data)
+
+      if (data.message) {
+        const existingIndex = messages.value.findIndex(m => m.id === data.message.id)
+        if (existingIndex >= 0) {
+          messages.value[existingIndex] = data.message
+        } else {
+          messages.value.push(data.message)
         }
-
+        streamingMessage.value = null
         scrollToBottom()
-        antMessage.success('Plan-and-Execute 执行完成')
-      },
-      onError: (error) => {
-        console.error('Plan-and-Execute 执行失败:', error)
-        antMessage.error(`执行失败: ${error.message}`)
-      },
+      }
+    })
+
+    eventSource.addEventListener('streaming', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[MCP Chat] Streaming:', data)
+
+      streamingMessage.value = {
+        id: data.messageId,
+        role: data.role,
+        content: data.content,
+        timestamp: data.timestamp,
+      }
+      scrollToBottom()
+    })
+
+    eventSource.addEventListener('conversation_cleared', (event) => {
+      const data = JSON.parse(event.data)
+      console.log('[MCP Chat] Conversation cleared:', data)
+      messages.value = []
+      streamingMessage.value = null
+      antMessage.info('对话已清空')
     })
 
   } catch (error) {
-    console.error('Plan-and-Execute 执行错误:', error)
-    antMessage.error('执行过程中发生错误')
+    console.error('[MCP Chat] Failed to connect:', error)
+    connectionStatus.value = 'disconnected'
+    antMessage.error('无法连接到 MCP 服务器')
+  }
+}
+
+// 发送消息
+const sendMessage = async () => {
+  if (!inputMessage.value.trim() || !isConnected.value || isSending.value) {
+    return
+  }
+
+  const content = inputMessage.value.trim()
+  inputMessage.value = ''
+  isSending.value = true
+
+  try {
+    // 构建请求元数据，包含选中的模型信息
+    const metadata: any = {
+      stream: true,
+    }
+
+    if (selectedModel.value) {
+      metadata.model = selectedModel.value.model.name
+      metadata.service = {
+        id: selectedModel.value.service.id,
+        name: selectedModel.value.service.name,
+        apiUrl: selectedModel.value.service.apiUrl,
+        apiKey: selectedModel.value.service.apiKey,
+      }
+    } else {
+      metadata.model = 'mcp-default'
+    }
+
+    // 根据模式选择不同的 API 端点
+    const apiEndpoint = usePlanMode.value
+      ? 'http://localhost:3002/mcp/plan/create'
+      : 'http://localhost:3002/mcp/chat/send'
+
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content,
+        conversationId: currentConversationId.value,
+        metadata,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log('[MCP Chat] Message sent:', result)
+
+    if (result.conversationId && result.conversationId !== currentConversationId.value) {
+      currentConversationId.value = result.conversationId
+    }
+
+  } catch (error) {
+    console.error('[MCP Chat] Failed to send message:', error)
+    antMessage.error('发送消息失败')
+    inputMessage.value = content // 恢复输入内容
   } finally {
     isSending.value = false
   }
 }
 
-const stopPlanExecution = () => {
-  // 这里可以实现停止执行的逻辑
-  if (currentPlan.value) {
-    currentPlan.value.status = 'failed'
-    antMessage.info('已停止执行')
+// 处理键盘事件
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    sendMessage()
   }
 }
 
-// 生命周期
-onMounted(() => {
-  // 初始化连接
-  if (planAndExecuteMode.value) {
-    initializeDifyClient()
-  } else {
-    connectSSE()
-  }
-})
+// 开始新对话
+const startNewConversation = () => {
+  currentConversationId.value = ''
+  messages.value = []
+  streamingMessage.value = null
+  connectToMCPServer()
+  loadConversations()
+}
 
-// 监听模式切换
-watch(chatMode, (newMode) => {
-  if (newMode === 'plan-execute') {
-    initializeDifyClient()
-  } else {
-    connectSSE()
+// 切换对话
+const switchConversation = (conversationId: string) => {
+  if (conversationId === currentConversationId.value) {
+    return
   }
+
+  currentConversationId.value = conversationId
+  messages.value = []
+  streamingMessage.value = null
+  connectToMCPServer()
+}
+
+// 清空当前对话
+const clearCurrentConversation = async () => {
+  if (!currentConversationId.value) {
+    return
+  }
+
+  try {
+    const response = await fetch(`http://localhost:3002/mcp/conversations/${currentConversationId.value}`, {
+      method: 'DELETE',
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    console.log('[MCP Chat] Conversation cleared')
+    loadConversations()
+  } catch (error) {
+    console.error('[MCP Chat] Failed to clear conversation:', error)
+    antMessage.error('清空对话失败')
+  }
+}
+
+// 重新连接
+const reconnect = () => {
+  connectToMCPServer()
+  loadServerStats()
+  loadConversations()
+}
+
+// 加载服务器统计信息
+const loadServerStats = async () => {
+  try {
+    if (window.electronAPI && (window.electronAPI as any).invoke) {
+      const stats = await (window.electronAPI as any).invoke('get-mcp-server-stats')
+      serverStats.value = stats
+    }
+  } catch (error) {
+    console.error('[MCP Chat] Failed to load server stats:', error)
+  }
+}
+
+// 加载对话列表
+const loadConversations = async () => {
+  try {
+    if (window.electronAPI && (window.electronAPI as any).invoke) {
+      const convs = await (window.electronAPI as any).invoke('get-mcp-conversations')
+      conversations.value = convs.sort((a: any, b: any) => b.lastActivity - a.lastActivity)
+    }
+  } catch (error) {
+    console.error('[MCP Chat] Failed to load conversations:', error)
+  }
+}
+
+// 加载模型服务配置
+const loadModelServices = () => {
+  try {
+    const storage = createSettingsStorage(STORAGE_KEYS.MODEL_SERVICES)
+    const savedData = storage.load()
+
+    if (savedData && savedData.services && Array.isArray(savedData.services)) {
+      modelServices.value = savedData.services
+      console.log('[MCP Chat] 模型服务配置加载成功:', modelServices.value.length, '个服务')
+
+      // 如果没有选中的模型，自动选择第一个启用的模型
+      if (!selectedModel.value && enabledModelServices.value.length > 0) {
+        const firstService = enabledModelServices.value[0]
+        const firstModel = firstService.models.find(m => m.enabled)
+        if (firstModel) {
+          selectModel(firstService, firstModel)
+        }
+      }
+    } else {
+      console.log('[MCP Chat] 没有找到保存的模型服务配置')
+    }
+  } catch (error) {
+    console.error('[MCP Chat] 加载模型服务配置失败:', error)
+  }
+}
+
+// 选择模型
+const selectModel = (service: ModelService, model: ModelInfo) => {
+  selectedModel.value = { service, model }
+  showModelSelector.value = false
+  console.log('[MCP Chat] 选择模型:', service.name, '-', model.name)
+  antMessage.success(`已选择模型: ${service.name} - ${model.name}`)
+}
+
+// 定期更新统计信息
+let statsInterval: NodeJS.Timeout | null = null
+
+onMounted(() => {
+  connectToMCPServer()
+  loadServerStats()
+  loadConversations()
+  loadModelServices()
+
+  // 每5秒更新一次统计信息
+  statsInterval = setInterval(() => {
+    if (showStats.value) {
+      loadServerStats()
+    }
+    loadConversations()
+  }, 5000)
 })
 
 onUnmounted(() => {
   if (eventSource) {
     eventSource.close()
   }
+  if (statsInterval) {
+    clearInterval(statsInterval)
+  }
 })
-
-// 监听消息变化，自动滚动
-watch(messages, () => {
-  scrollToBottom()
-}, { deep: true })
 </script>
 
 <style scoped>
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.typing-indicator span {
+/* 自定义滚动条 */
+.overflow-y-auto::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #3b82f6;
-  animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-indicator span:nth-child(1) {
-  animation-delay: -0.32s;
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
 }
 
-.typing-indicator span:nth-child(2) {
-  animation-delay: -0.16s;
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
 }
 
-@keyframes typing {
-  0%, 80%, 100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 </style>
