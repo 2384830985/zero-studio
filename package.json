@@ -28,10 +28,14 @@
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
+    "@langchain/community": "^0.3.48",
+    "@langchain/core": "^0.3.62",
+    "@langchain/openai": "^0.5.18",
     "ant-design-vue": "^4.2.6",
     "cors": "^2.8.5",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
+    "langchain": "^0.3.29",
     "vite-plugin-electron": "^0.29.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.1"

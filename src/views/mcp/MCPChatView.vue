@@ -20,6 +20,19 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
+          <!-- 模式切换按钮 -->
+          <a-button
+            size="small"
+            :type="usePlanMode ? 'primary' : 'default'"
+            @click="usePlanMode = !usePlanMode"
+          >
+            <template #icon>
+              <BulbOutlined v-if="usePlanMode" />
+              <MessageOutlined v-else />
+            </template>
+            {{ usePlanMode ? '计划模式' : '聊天模式' }}
+          </a-button>
+
           <!-- 模型选择器 -->
           <a-dropdown
             v-model:open="showModelSelector"
@@ -179,10 +192,10 @@
             <div class="text-center">
               <RobotOutlined class="text-6xl text-gray-400 mb-4" />
               <h3 class="text-lg font-medium text-gray-900 mb-2">
-                MCP 聊天助手
+                {{ usePlanMode ? 'MCP 计划执行助手' : 'MCP 聊天助手' }}
               </h3>
               <p class="text-gray-500">
-                支持 Streamable HTTP 协议的 MCP 服务器
+                {{ usePlanMode ? '输入目标任务，AI 将制定详细的执行计划并逐步执行' : '支持 Streamable HTTP 协议的 MCP 服务器' }}
               </p>
             </div>
           </div>
@@ -246,7 +259,7 @@
           <div class="bg-gray-50 rounded-xl p-3">
             <a-textarea
               v-model:value="inputMessage"
-              placeholder="输入消息... (Shift+Enter 换行，Enter 发送)"
+              :placeholder="usePlanMode ? '输入目标任务，AI 将制定执行计划... (Shift+Enter 换行，Enter 发送)' : '输入消息... (Shift+Enter 换行，Enter 发送)'"
               :auto-size="{ minRows: 1, maxRows: 4 }"
               class="!border-none !bg-transparent !shadow-none !p-0 text-sm"
               :disabled="!isConnected || isSending"
@@ -298,6 +311,8 @@ import {
   GlobalOutlined,
   ArrowUpOutlined,
   SettingOutlined,
+  BulbOutlined,
+  MessageOutlined,
 } from '@ant-design/icons-vue'
 import { createSettingsStorage, STORAGE_KEYS } from '../../utils/settingsStorage'
 
@@ -357,6 +372,7 @@ const currentConversationId = ref<string>('')
 const conversations = ref<MCPConversation[]>([])
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
+const usePlanMode = ref(false)
 
 // 模型相关数据
 const modelServices = ref<ModelService[]>([])
@@ -521,7 +537,12 @@ const sendMessage = async () => {
       metadata.model = 'mcp-default'
     }
 
-    const response = await fetch('http://localhost:3002/mcp/chat/send', {
+    // 根据模式选择不同的 API 端点
+    const apiEndpoint = usePlanMode.value
+      ? 'http://localhost:3002/mcp/plan/create'
+      : 'http://localhost:3002/mcp/chat/send'
+
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

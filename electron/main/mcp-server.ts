@@ -3,6 +3,12 @@ import cors from 'cors'
 import { Server } from 'http'
 import axios from 'axios'
 import { log } from 'node:console'
+import {
+  PlanAndExecuteAgent,
+  ExecutionPlan,
+  PlanStep,
+  MeituanPlanAndExecuteAgent,
+} from './plan-and-execute'
 
 export interface MCPMessage {
   id: string
@@ -51,6 +57,8 @@ export class MCPServer {
   private clients: Set<any> = new Set()
   private conversations: Map<string, MCPMessage[]> = new Map()
   private config: MCPServerConfig
+  private planAgent: PlanAndExecuteAgent | null = null
+  private executionPlans: Map<string, ExecutionPlan> = new Map()
 
   constructor(config: MCPServerConfig) {
     this.config = {
@@ -63,6 +71,37 @@ export class MCPServer {
     this.app = express()
     this.setupMiddleware()
     this.setupRoutes()
+    this.initializePlanAgent()
+  }
+
+  private initializePlanAgent() {
+    try {
+      // 如果配置了美团 AIGC，使用美团的 PlanAndExecute 代理
+      if (this.config.meituanAIGC?.appId) {
+        this.planAgent = new MeituanPlanAndExecuteAgent({
+          appId: this.config.meituanAIGC.appId,
+          model: this.config.meituanAIGC.defaultModel || 'gpt-3.5-turbo',
+          temperature: 0.7,
+          maxTokens: 2000,
+          enableReplanning: true,
+          enableSubtaskDecomposition: true,
+        })
+        console.log('[MCP Server] Initialized Meituan PlanAndExecute agent')
+      } else {
+        // 使用默认的 OpenAI 代理（需要配置 API Key）
+        this.planAgent = new PlanAndExecuteAgent({
+          model: 'gpt-3.5-turbo',
+          temperature: 0.7,
+          maxTokens: 2000,
+          enableReplanning: true,
+          enableSubtaskDecomposition: true,
+        })
+        console.log('[MCP Server] Initialized default PlanAndExecute agent')
+      }
+    } catch (error) {
+      console.error('[MCP Server] Failed to initialize PlanAndExecute agent:', error)
+      this.planAgent = null
+    }
   }
 
   private setupMiddleware() {
@@ -284,6 +323,440 @@ export class MCPServer {
 
       res.json({ conversations })
     })
+
+    // Plan and Execute 路由
+    this.setupPlanRoutes()
+  }
+
+  private setupPlanRoutes() {
+    // 创建执行计划
+    this.app.post('/mcp/plan/create', async (req: any, res: any) => {
+      try {
+        const { content, conversationId, metadata = {} } = req.body
+
+        if (!content || typeof content !== 'string') {
+          return res.status(400).json({ error: 'Content (goal) is required' })
+        }
+
+        if (!this.planAgent) {
+          return res.status(503).json({ error: 'PlanAndExecute agent not available' })
+        }
+
+        console.log(`[MCP Server] Creating plan for goal: ${content}`)
+
+        // 创建执行计划
+        const plan = await this.planAgent.createPlan(content.trim())
+
+        // 保存计划
+        this.executionPlans.set(plan.id, plan)
+
+        // 如果有对话ID，创建用户消息
+        if (conversationId) {
+          const userMessage: MCPMessage = {
+            id: this.generateId(),
+            role: 'user',
+            content: content.trim(),
+            timestamp: Date.now(),
+            metadata: { ...metadata, planId: plan.id },
+          }
+
+          // 保存到对话历史
+          if (!this.conversations.has(conversationId)) {
+            this.conversations.set(conversationId, [])
+          }
+          this.conversations.get(conversationId)!.push(userMessage)
+
+          // 广播用户消息
+          this.broadcastSSEMessage('message', {
+            conversationId,
+            message: userMessage,
+          })
+
+          // 开始执行计划并流式返回结果
+          this.executePlanWithStreaming(plan, conversationId, metadata)
+        }
+
+        res.json({
+          success: true,
+          plan: {
+            id: plan.id,
+            goal: plan.goal,
+            status: plan.status,
+            stepsCount: plan.steps.length,
+            createdAt: plan.createdAt,
+          },
+          conversationId,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error creating plan:', error)
+        res.status(500).json({
+          error: 'Failed to create plan',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 执行计划
+    this.app.post('/mcp/plan/execute/:planId', async (req: any, res: any) => {
+      try {
+        const { planId } = req.params
+        const { conversationId, metadata = {} } = req.body
+
+        const plan = this.executionPlans.get(planId)
+        if (!plan) {
+          return res.status(404).json({ error: 'Plan not found' })
+        }
+
+        if (!this.planAgent) {
+          return res.status(503).json({ error: 'PlanAndExecute agent not available' })
+        }
+
+        console.log(`[MCP Server] Executing plan: ${planId}`)
+
+        // 执行计划并流式返回结果
+        if (conversationId) {
+          this.executePlanWithStreaming(plan, conversationId, metadata)
+        } else {
+          // 非流式执行
+          const executedPlan = await this.planAgent.executePlan(plan)
+          this.executionPlans.set(planId, executedPlan)
+        }
+
+        res.json({
+          success: true,
+          planId,
+          conversationId,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error executing plan:', error)
+        res.status(500).json({
+          error: 'Failed to execute plan',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 一步创建并执行计划
+    this.app.post('/mcp/plan/execute', async (req: any, res: any) => {
+      try {
+        const { content, conversationId, metadata = {} } = req.body
+
+        if (!content || typeof content !== 'string') {
+          return res.status(400).json({ error: 'Content (goal) is required' })
+        }
+
+        if (!this.planAgent) {
+          return res.status(503).json({ error: 'PlanAndExecute agent not available' })
+        }
+
+        console.log(`[MCP Server] Creating and executing plan for goal: ${content}`)
+
+        // 创建执行计划
+        const plan = await this.planAgent.createPlan(content.trim())
+        this.executionPlans.set(plan.id, plan)
+
+        // 如果有对话ID，创建用户消息
+        if (conversationId) {
+          const userMessage: MCPMessage = {
+            id: this.generateId(),
+            role: 'user',
+            content: content.trim(),
+            timestamp: Date.now(),
+            metadata: { ...metadata, planId: plan.id },
+          }
+
+          // 保存到对话历史
+          if (!this.conversations.has(conversationId)) {
+            this.conversations.set(conversationId, [])
+          }
+          this.conversations.get(conversationId)!.push(userMessage)
+
+          // 广播用户消息
+          this.broadcastSSEMessage('message', {
+            conversationId,
+            message: userMessage,
+          })
+
+          // 执行计划并流式返回结果
+          this.executePlanWithStreaming(plan, conversationId, metadata)
+        }
+
+        res.json({
+          success: true,
+          plan: {
+            id: plan.id,
+            goal: plan.goal,
+            status: plan.status,
+            stepsCount: plan.steps.length,
+            createdAt: plan.createdAt,
+          },
+          conversationId,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error in plan and execute:', error)
+        res.status(500).json({
+          error: 'Failed to create and execute plan',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 获取计划详情
+    this.app.get('/mcp/plan/:planId', (req: any, res: any) => {
+      const { planId } = req.params
+      const plan = this.executionPlans.get(planId)
+
+      if (!plan) {
+        return res.status(404).json({ error: 'Plan not found' })
+      }
+
+      res.json({ plan })
+    })
+
+    // 获取所有计划列表
+    this.app.get('/mcp/plans', (req: any, res: any) => {
+      const plans = Array.from(this.executionPlans.values()).map(plan => ({
+        id: plan.id,
+        goal: plan.goal,
+        status: plan.status,
+        stepsCount: plan.steps.length,
+        completedSteps: plan.steps.filter(s => s.status === 'completed').length,
+        createdAt: plan.createdAt,
+        completedAt: plan.completedAt,
+      }))
+
+      res.json({ plans })
+    })
+
+    // 删除计划
+    this.app.delete('/mcp/plan/:planId', (req: any, res: any) => {
+      const { planId } = req.params
+      const deleted = this.executionPlans.delete(planId)
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Plan not found' })
+      }
+
+      res.json({ success: true })
+    })
+
+    // 重新规划
+    this.app.post('/mcp/plan/replan/:planId', async (req: any, res: any) => {
+      try {
+        const { planId } = req.params
+        const { conversationId, metadata = {} } = req.body
+
+        const plan = this.executionPlans.get(planId)
+        if (!plan) {
+          return res.status(404).json({ error: 'Plan not found' })
+        }
+
+        if (!this.planAgent) {
+          return res.status(503).json({ error: 'PlanAndExecute agent not available' })
+        }
+
+        console.log(`[MCP Server] Replanning: ${planId}`)
+
+        // 重新执行计划（会触发内部的重规划逻辑）
+        if (conversationId) {
+          this.executePlanWithStreaming(plan, conversationId, metadata)
+        }
+
+        res.json({
+          success: true,
+          planId,
+          conversationId,
+        })
+      } catch (error) {
+        console.error('[MCP Server] Error in replanning:', error)
+        res.status(500).json({
+          error: 'Failed to replan',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // 获取计划配置
+    this.app.get('/mcp/plan/config', (req: any, res: any) => {
+      if (!this.planAgent) {
+        return res.status(503).json({ error: 'PlanAndExecute agent not available' })
+      }
+
+      const config = this.planAgent.getConfig()
+      res.json({ config })
+    })
+
+    // 更新计划配置
+    this.app.put('/mcp/plan/config', (req: any, res: any) => {
+      try {
+        const newConfig = req.body
+
+        if (!this.planAgent) {
+          return res.status(503).json({ error: 'PlanAndExecute agent not available' })
+        }
+
+        this.planAgent.updateConfig(newConfig)
+        console.log('[MCP Server] Plan agent config updated')
+
+        res.json({ success: true })
+      } catch (error) {
+        console.error('[MCP Server] Error updating plan config:', error)
+        res.status(500).json({
+          error: 'Failed to update config',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+  }
+
+  // 流式执行计划
+  private async executePlanWithStreaming(
+    plan: ExecutionPlan,
+    conversationId: string,
+    metadata: any = {},
+  ) {
+    if (!this.planAgent) {
+      console.error('[MCP Server] PlanAndExecute agent not available')
+      return
+    }
+
+    try {
+      console.log(`[MCP Server] Starting streaming execution of plan: ${plan.id}`)
+
+      // 创建助手消息用于显示计划执行过程
+      const assistantMessageId = this.generateId()
+      let currentContent = `🎯 **执行计划**: ${plan.goal}\n\n📋 **计划步骤**:\n`
+
+      // 显示初始计划
+      plan.steps.forEach((step, index) => {
+        currentContent += `${index + 1}. ${step.description}\n`
+      })
+      currentContent += '\n🚀 **开始执行**...\n\n'
+
+      // 广播初始计划消息
+      this.broadcastSSEMessage('streaming', {
+        conversationId,
+        messageId: assistantMessageId,
+        role: 'assistant',
+        content: currentContent,
+        timestamp: Date.now(),
+      })
+
+      // 执行计划，监听步骤更新
+      const executedPlan = await this.planAgent.executePlan(plan, (step: PlanStep) => {
+        // 更新步骤状态的显示
+        let stepContent = ''
+
+        if (step.status === 'executing') {
+          stepContent = `⏳ **正在执行**: ${step.description}\n`
+        } else if (step.status === 'completed') {
+          stepContent = `✅ **已完成**: ${step.description}\n`
+          if (step.result) {
+            stepContent += `   📝 结果: ${step.result}\n`
+          }
+          if (step.subtasks && step.subtasks.length > 0) {
+            stepContent += `   📂 子任务 (${step.subtasks.length}个):\n`
+            step.subtasks.forEach((subtask, idx) => {
+              const statusIcon = subtask.status === 'completed' ? '✅' :
+                subtask.status === 'failed' ? '❌' :
+                  subtask.status === 'executing' ? '⏳' : '⏸️'
+              stepContent += `      ${idx + 1}. ${statusIcon} ${subtask.description}\n`
+              if (subtask.result && subtask.status === 'completed') {
+                stepContent += `         💡 ${subtask.result}\n`
+              }
+            })
+          }
+        } else if (step.status === 'failed') {
+          stepContent = `❌ **执行失败**: ${step.description}\n`
+          if (step.error) {
+            stepContent += `   ⚠️ 错误: ${step.error}\n`
+          }
+        }
+
+        currentContent += stepContent + '\n'
+
+        // 广播步骤更新
+        this.broadcastSSEMessage('streaming', {
+          conversationId,
+          messageId: assistantMessageId,
+          role: 'assistant',
+          content: currentContent,
+          timestamp: Date.now(),
+        })
+      })
+
+      // 更新保存的计划
+      this.executionPlans.set(plan.id, executedPlan)
+
+      // 添加执行总结
+      const completedSteps = executedPlan.steps.filter(s => s.status === 'completed').length
+      const totalSteps = executedPlan.steps.length
+      const failedSteps = executedPlan.steps.filter(s => s.status === 'failed').length
+
+      currentContent += '\n📊 **执行总结**:\n'
+      currentContent += `- 总步骤: ${totalSteps}\n`
+      currentContent += `- 已完成: ${completedSteps}\n`
+      if (failedSteps > 0) {
+        currentContent += `- 失败: ${failedSteps}\n`
+      }
+      currentContent += `- 状态: ${executedPlan.status === 'completed' ? '✅ 完成' :
+        executedPlan.status === 'failed' ? '❌ 失败' : '⏸️ 部分完成'}\n`
+
+      // 发送最终消息
+      const finalMessage: MCPMessage = {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: currentContent,
+        timestamp: Date.now(),
+        metadata: {
+          ...metadata,
+          planId: plan.id,
+          executionSummary: {
+            totalSteps,
+            completedSteps,
+            failedSteps,
+            status: executedPlan.status,
+          },
+        },
+      }
+
+      // 保存到对话历史
+      if (!this.conversations.has(conversationId)) {
+        this.conversations.set(conversationId, [])
+      }
+      this.conversations.get(conversationId)!.push(finalMessage)
+
+      // 广播最终消息
+      this.broadcastSSEMessage('message', {
+        conversationId,
+        message: finalMessage,
+      })
+
+      console.log(`[MCP Server] Plan execution completed: ${plan.id}`)
+    } catch (error) {
+      console.error('[MCP Server] Error in streaming plan execution:', error)
+
+      // 发送错误消息
+      const errorMessage: MCPMessage = {
+        id: this.generateId(),
+        role: 'assistant',
+        content: `❌ **计划执行失败**: ${error instanceof Error ? error.message : '未知错误'}`,
+        timestamp: Date.now(),
+        metadata: { ...metadata, planId: plan.id, error: true },
+      }
+
+      // 保存到对话历史
+      if (!this.conversations.has(conversationId)) {
+        this.conversations.set(conversationId, [])
+      }
+      this.conversations.get(conversationId)!.push(errorMessage)
+
+      // 广播错误消息
+      this.broadcastSSEMessage('message', {
+        conversationId,
+        message: errorMessage,
+      })
+    }
   }
 
   private async handleStreamingRequest(
@@ -492,7 +965,7 @@ export class MCPServer {
   }
 
   private async handleNonStreamingRequest(
-    req: any,
+    _req: any,
     res: any,
     messages: any[],
     model: string,
