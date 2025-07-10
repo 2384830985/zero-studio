@@ -221,7 +221,7 @@ export class StdioMcpClientToFunction {
     try {
       const loginEnv = await getLoginShellEnvironment()
       const pathSeparator = process.platform === 'win32' ? ';' : ':'
-      const cherryBinPath = path.join(os.homedir(), '.cherrystudio', 'bin')
+      const cherryBinPath = path.join(os.homedir(), '.bigBrother', 'bin')
       loginEnv.PATH = `${loginEnv.PATH}${pathSeparator}${cherryBinPath}`
       console.info('[MCP] Successfully fetched login shell environment variables:')
       return loginEnv

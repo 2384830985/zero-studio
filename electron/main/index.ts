@@ -5,7 +5,10 @@ import os from 'node:os'
 import fs from 'node:fs'
 import { log } from 'node:console'
 import { MCPServer } from './mcp-server'
+// import { runInstallScript } from './utils/process'
 import dotenv from 'dotenv'
+
+// runInstallScript('install-bun.cjs')
 
 // 加载环境变量文件（根据环境选择不同文件）
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
