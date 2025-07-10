@@ -346,10 +346,12 @@
               @keydown="handleKeyDown"
             />
             <div class="flex justify-between items-center mt-2">
-              <div class="flex gap-3">
+              <div class="flex gap-3 items-center">
                 <PaperClipOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
                 <LinkOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
                 <GlobalOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
+                <!-- 执行环境组件 -->
+                <ExecutionEnvironment />
               </div>
               <div class="flex items-center gap-2">
                 <a-button
@@ -397,6 +399,7 @@ import {
 } from '@ant-design/icons-vue'
 import { createSettingsStorage, STORAGE_KEYS } from '../../utils/settingsStorage'
 import { getEnabledMCPServers } from '../../utils/mcpManager'
+import ExecutionEnvironment from '../../components/ExecutionEnvironment.vue'
 
 interface MCPMessage {
   id: string

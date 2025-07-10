@@ -40,6 +40,12 @@ export interface IElectronIPC {
   off: (channel: string, listener?: (...args: any[]) => void) => Electron.IpcRenderer
   send: (channel: string, ...args: any[]) => void
   invoke: (channel: string, ...args: any[]) => Promise<any>
+  // 执行环境管理相关方法
+  invoke(channel: 'run-install-script', scriptName: string): Promise<{ success: boolean }>
+  invoke(channel: 'check-binary-exists', binaryName: string): Promise<boolean>
+  invoke(channel: 'get-binary-version', binaryName: string): Promise<string>
+  invoke(channel: 'set-default-runtime', runtime: string): Promise<{ success: boolean; runtime: string }>
+  invoke(channel: 'open-bin-directory'): Promise<{ success: boolean }>
 }
 
 declare global {

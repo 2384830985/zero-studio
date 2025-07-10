@@ -5,10 +5,9 @@ import os from 'node:os'
 import fs from 'node:fs'
 import { log } from 'node:console'
 import { MCPServer } from './mcp-server'
-// import { runInstallScript } from './utils/process'
+import { runInstallScript, isBinaryExists, getBinaryPath } from './utils/process'
+import { execSync } from 'child_process'
 import dotenv from 'dotenv'
-
-// runInstallScript('install-bun.cjs')
 
 // 加载环境变量文件（根据环境选择不同文件）
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -255,6 +254,87 @@ ipcMain.handle('open-win', (_, arg) => {
     childWindow.loadURL(`${VITE_DEV_SERVER_URL}#${arg}`)
   } else {
     childWindow.loadFile(indexHtml, { hash: arg })
+  }
+})
+
+// 执行环境管理相关的 IPC 处理程序
+
+// 运行安装脚本
+ipcMain.handle('run-install-script', async (_, scriptName: string) => {
+  try {
+    console.log(`[IPC] Running install script: ${scriptName}`)
+    await runInstallScript(scriptName)
+    console.log(`[IPC] Install script completed: ${scriptName}`)
+    return { success: true }
+  } catch (error) {
+    console.error(`[IPC] Install script failed: ${scriptName}`, error)
+    throw error
+  }
+})
+
+// 检查二进制文件是否存在
+ipcMain.handle('check-binary-exists', async (_, binaryName: string) => {
+  try {
+    const exists = await isBinaryExists(binaryName)
+    console.log(`[IPC] Binary ${binaryName} exists: ${exists}`)
+    return exists
+  } catch (error) {
+    console.error(`[IPC] Error checking binary ${binaryName}:`, error)
+    return false
+  }
+})
+
+// 获取二进制文件版本
+ipcMain.handle('get-binary-version', async (_, binaryName: string) => {
+  try {
+    const binaryPath = await getBinaryPath(binaryName)
+    let version = 'unknown'
+
+    if (binaryName === 'bun') {
+      const output = execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
+      version = output.trim()
+    } else if (binaryName === 'uv') {
+      const output = execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
+      version = output.trim().replace('uv ', '')
+    }
+
+    console.log(`[IPC] Binary ${binaryName} version: ${version}`)
+    return version
+  } catch (error) {
+    console.error(`[IPC] Error getting version for ${binaryName}:`, error)
+    return 'unknown'
+  }
+})
+
+// 设置默认运行时
+ipcMain.handle('set-default-runtime', async (_, runtime: string) => {
+  try {
+    console.log(`[IPC] Setting default runtime to: ${runtime}`)
+    // 这里可以保存到配置文件或环境变量中
+    // 暂时只是记录日志
+    return { success: true, runtime }
+  } catch (error) {
+    console.error('[IPC] Error setting default runtime:', error)
+    throw error
+  }
+})
+
+// 打开 bin 目录
+ipcMain.handle('open-bin-directory', async () => {
+  try {
+    const binDir = await getBinaryPath()
+    console.log(`[IPC] Opening bin directory: ${binDir}`)
+
+    // 确保目录存在
+    if (!fs.existsSync(binDir)) {
+      fs.mkdirSync(binDir, { recursive: true })
+    }
+
+    await shell.openPath(binDir)
+    return { success: true }
+  } catch (error) {
+    console.error('[IPC] Error opening bin directory:', error)
+    throw error
   }
 })
 
