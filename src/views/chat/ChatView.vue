@@ -631,6 +631,11 @@ const sendMessage = async () => {
       ? 'http://localhost:3002/mcp/plan/create'
       : 'http://localhost:3002/mcp/chat/send'
 
+    const selectedMCPServersObj: { [key: string]: boolean } = {}
+    selectedMCPServers.value.map(item => {
+      selectedMCPServersObj[item] = true
+    })
+
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -642,7 +647,7 @@ const sendMessage = async () => {
         metadata,
         enabledMCPServers: enabledMCPServers.value.map(item => {
           return {...item}
-        }),
+        }).filter(item => selectedMCPServersObj[item.id]),
       }),
     })
 
