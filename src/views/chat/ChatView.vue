@@ -20,18 +20,39 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <!-- 模式切换按钮 -->
-          <a-button
-            size="small"
-            :type="usePlanMode ? 'primary' : 'default'"
-            @click="usePlanMode = !usePlanMode"
+          <a-dropdown
+            v-model:open="showUsePlanMode"
+            placement="bottomLeft"
+            :trigger="['click']"
+            @click.prevent
           >
-            <template #icon>
-              <BulbOutlined v-if="usePlanMode" />
-              <MessageOutlined v-else />
+            <a-button size="small">
+              <template #icon>
+                <SettingOutlined />
+              </template>
+              {{ usePlanModeName }}
+            </a-button>
+            <template #overlay>
+              <a-menu
+                class="max-h-80 overflow-y-auto"
+              >
+                <template
+                  v-for="usePlanModeItem in UsePlanModeList"
+                  :key="usePlanModeItem.value"
+                >
+                  <a-menu-item @click="selectUsePlanMode(usePlanModeItem)">
+                    <div class="flex items-center space-x-3">
+                      <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-gray-900 truncate">
+                          {{ usePlanModeItem.name }}
+                        </div>
+                      </div>
+                    </div>
+                  </a-menu-item>
+                </template>
+              </a-menu>
             </template>
-            {{ usePlanMode ? '计划模式' : '聊天模式' }}
-          </a-button>
+          </a-dropdown>
 
           <!-- 模型选择器 -->
           <a-dropdown
@@ -272,10 +293,10 @@
             <div class="text-center">
               <RobotOutlined class="text-6xl text-gray-400 mb-4" />
               <h3 class="text-lg font-medium text-gray-900 mb-2">
-                {{ usePlanMode ? '计划执行助手' : '聊天助手' }}
+                {{ usePlanModeName }}
               </h3>
               <p class="text-gray-500">
-                {{ usePlanMode ? '输入目标任务，AI 将制定详细的执行计划并逐步执行' : '支持 Streamable HTTP 协议的 MCP 服务器' }}
+                {{ usePlanModeName }}
               </p>
             </div>
           </div>
@@ -339,7 +360,7 @@
           <div class="bg-gray-50 rounded-xl p-3">
             <a-textarea
               v-model:value="inputMessage"
-              :placeholder="usePlanMode ? '输入目标任务，AI 将制定执行计划... (Shift+Enter 换行，Enter 发送)' : '输入消息... (Shift+Enter 换行，Enter 发送)'"
+              :placeholder="usePlanModeName"
               :auto-size="{ minRows: 1, maxRows: 4 }"
               class="!border-none !bg-transparent !shadow-none !p-0 text-sm"
               :disabled="!isConnected || isSending"
@@ -393,59 +414,16 @@ import {
   GlobalOutlined,
   ArrowUpOutlined,
   SettingOutlined,
-  BulbOutlined,
-  MessageOutlined,
   ApiOutlined,
 } from '@ant-design/icons-vue'
 import { createSettingsStorage, STORAGE_KEYS } from '../../utils/settingsStorage'
 import { getEnabledMCPServers } from '../../utils/mcpManager'
 import ExecutionEnvironment from '../../components/ExecutionEnvironment.vue'
+import { useChatStore, USE_PLAN_MODE, IUsePlanMode  } from '@/store'
+import type { MCPMessage, MCPConversation, MCPServerStats, ModelInfo, ModelService } from './chat.type'
+import {PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
 
-interface MCPMessage {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp: number
-  metadata?: {
-    model?: string
-    temperature?: number
-    maxTokens?: number
-    stream?: boolean
-  }
-}
-
-interface MCPConversation {
-  id: string
-  messages: MCPMessage[]
-  messageCount: number
-  lastActivity: number
-}
-
-interface MCPServerStats {
-  connectedClients: number
-  totalConversations: number
-  totalMessages: number
-  port: number
-  config: object
-}
-
-interface ModelService {
-  id: string
-  name: string
-  description: string
-  color: string
-  enabled: boolean
-  apiKey: string
-  apiUrl: string
-  models: ModelInfo[]
-}
-
-interface ModelInfo {
-  name: string
-  description: string
-  enabled: boolean
-  color: string
-}
+const chatStore = useChatStore()
 
 // 响应式数据
 const messages = ref<MCPMessage[]>([])
@@ -457,15 +435,14 @@ const currentConversationId = ref<string>('')
 const conversations = ref<MCPConversation[]>([])
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
-const usePlanMode = ref(false)
+const showUsePlanMode = ref(false)
 
 // 模型相关数据
 const modelServices = ref<ModelService[]>([])
 const selectedModel = ref<{ service: ModelService; model: ModelInfo } | null>(null)
 const showModelSelector = ref(false)
 
-// MCP 相关数据
-const selectedMCPServers = ref<string[]>([])
+
 const showMCPSelector = ref(false)
 
 // DOM 引用
@@ -476,6 +453,12 @@ let eventSource: EventSource | null = null
 
 // 计算属性
 const isConnected = computed(() => connectionStatus.value === 'connected')
+
+const usePlanMode = computed(() => chatStore.usePlanMode)
+const UsePlanModeList = computed(() => chatStore.UsePlanModeList)
+const usePlanModeName = computed(() => chatStore.usePlanModeName)
+// MCP 相关数据
+const selectedMCPServers = computed(() => chatStore.selectedMCPServers)
 
 // 获取启用的模型服务
 const enabledModelServices = computed(() => {
@@ -630,42 +613,33 @@ const sendMessage = async () => {
     }
 
     // 根据模式选择不同的 API 端点
-    const apiEndpoint = usePlanMode.value
-      ? 'http://localhost:3002/mcp/plan/create'
-      : 'http://localhost:3002/mcp/chat/send'
+    const apiEndpoint = usePlanMode.value === USE_PLAN_MODE.QUEST_ANSWERS
+      ? PostChatSendApi
+      : PostPlanCreateApi
 
     const selectedMCPServersObj: { [key: string]: boolean } = {}
     selectedMCPServers.value.map(item => {
       selectedMCPServersObj[item] = true
     })
 
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        content,
-        conversationId: currentConversationId.value,
-        metadata,
-        enabledMCPServers: enabledMCPServers.value.map(item => {
-          return {...item}
-        }).filter(item => selectedMCPServersObj[item.id]),
-      }),
+    const response = await apiEndpoint({
+      content,
+      conversationId: currentConversationId.value,
+      metadata,
+      enabledMCPServers: enabledMCPServers.value.map(item => {
+        return {...item}
+      }).filter(item => selectedMCPServersObj[item.id]),
     })
 
-    if (!response.ok) {
+    if (!response.data.conversationId) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
-
-    const result = await response.json()
-    console.log('[MCP Chat] Message sent:', result)
 
     // 请求成功后清空输入框
     inputMessage.value = ''
 
-    if (result.conversationId && result.conversationId !== currentConversationId.value) {
-      currentConversationId.value = result.conversationId
+    if (response.data.conversationId && response.data.conversationId !== currentConversationId.value) {
+      currentConversationId.value = response.data.conversationId
     }
 
   } catch (error) {
@@ -793,15 +767,18 @@ const selectModel = (service: ModelService, model: ModelInfo) => {
   antMessage.success(`已选择模型: ${service.name} - ${model.name}`)
 }
 
+/**
+ * 选择当前的模式
+ * @param item
+ */
+const selectUsePlanMode = (item: IUsePlanMode) => {
+  showUsePlanMode.value = false
+  chatStore.selectUsePlanMode(item.value)
+}
+
 // 切换MCP服务器选择
 const toggleMCPServer = (serverId: string) => {
-  const index = selectedMCPServers.value.indexOf(serverId)
-  if (index > -1) {
-    selectedMCPServers.value.splice(index, 1)
-  } else {
-    selectedMCPServers.value.push(serverId)
-  }
-
+  const index = chatStore.toggleMCPServer(serverId)
   const serverName = enabledMCPServers.value.find(s => s.id === serverId)?.name || serverId
   const action = index > -1 ? '取消选择' : '选择'
   console.log(`[MCP Chat] ${action} MCP 服务器:`, serverName)

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import ptah from 'path'
 import electron from 'vite-plugin-electron/simple'
 import renderer from 'vite-plugin-electron-renderer'
 import pkg from './package.json'
@@ -20,6 +21,11 @@ export default defineConfig(({ command }) => {
   }
 
   return {
+    resolve: {
+      alias: {
+        '@': ptah.resolve(__dirname, 'src'),
+      },
+    },
     plugins: [
       vue(),
       electron({
