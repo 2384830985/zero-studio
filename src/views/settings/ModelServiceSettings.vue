@@ -211,11 +211,61 @@
         </div>
       </div>
     </div>
+
+    <!-- 添加/编辑服务器模态框 -->
+    <a-modal
+      v-model:open="showAddModal"
+      :title="serverForm.id !== '' ? '编辑模型' : '添加模型'"
+      :width="600"
+      @ok="handleSaveServer"
+      @cancel="handleCancelEdit"
+    >
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            名称 *
+          </label>
+          <a-input
+            v-model:value="serverForm.name"
+            placeholder="输入模型名称"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            描述
+          </label>
+          <a-textarea
+            v-model:value="serverForm.description"
+            placeholder="输入服务器描述"
+            :rows="2"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            颜色
+          </label>
+          <a-input
+            v-model:value="serverForm.color"
+            placeholder="例如: red"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            是否启用
+          </label>
+          <a-switch
+            v-model:checked="serverForm.enabled"
+          />
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, reactive } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   SearchOutlined,
@@ -224,14 +274,25 @@ import {
   DeleteOutlined,
   PlusOutlined,
 } from '@ant-design/icons-vue'
+import {IModels, useModelServiceStore} from '@/store'
 
-// 本地存储的键名
-const STORAGE_KEY = 'model-services-config'
+const modelServiceStore = useModelServiceStore()
 
 // 模型服务相关数据
 const searchQuery = ref('')
 const expandedService = ref<string | null>(null)
 const showAddServiceModal = ref(false)
+const showAddModal = ref(false)
+
+// 服务器表单
+const serverForm = reactive<IModels>({
+  name: '',
+  description: '',
+  color: '',
+  enabled: false,
+  pid: '',
+  id: '',
+})
 
 // 模型服务列表
 const modelServices = ref([
@@ -249,6 +310,8 @@ const modelServices = ref([
         description: '通用对话模型',
         enabled: true,
         color: '#3b82f6',
+        pid: 'friday',
+        id: `${Date.now()}`,
       },
     ],
   },
@@ -384,6 +447,63 @@ const modelServices = ref([
   },
 ])
 
+const handleSaveServer = () => {
+  console.log('1111')
+  if (!serverForm.name.trim()) {
+    message.error('请输入模型名称')
+    return
+  }
+  console.log('2222')
+
+  const modelName = serverForm.name.trim()
+  if (modelName) {
+    const index = modelServices.value.findIndex(service => service.id === serverForm.pid)
+    console.log('3333', index)
+    if (modelServices.value[index]) {
+      console.log('4444')
+      if (serverForm.id !== '') {
+        console.log('555')
+        const itemIndex = modelServices.value[index].models.findIndex(model => model.id === serverForm.id)
+        if (modelServices.value[index].models[itemIndex]) {
+          modelServices.value[index].models[itemIndex] = {
+            name: modelName,
+            id: modelServices.value[index].models[itemIndex].id,
+            pid: modelServices.value[index].models[itemIndex].pid,
+            description: serverForm.description,
+            enabled: serverForm.enabled,
+            color: serverForm.color,
+          }
+          message.success('模型修改成功')
+          showAddModal.value = false
+        }
+      } else {
+        console.log('666')
+        modelServices.value[index].models.push({
+          name: modelName,
+          id: `${Date.now()}`,
+          description: serverForm.description,
+          enabled: serverForm.enabled,
+          pid: serverForm.pid,
+          color: serverForm.color,
+        })
+        message.success('模型添加成功')
+        showAddModal.value = false
+      }
+    }
+  }
+}
+const handleCancelEdit = () => {
+  showAddModal.value = false
+
+  // 重置表单
+  serverForm.name = ''
+  serverForm.description = ''
+  serverForm.color = ''
+  serverForm.pid = ''
+  serverForm.id = ''
+  serverForm.enabled = false
+}
+
 // 过滤后的模型服务
 const filteredModelServices = computed(() => {
   if (!searchQuery.value) {
@@ -408,16 +528,11 @@ const toggleExpand = (serviceId: string) => {
 }
 
 const addModel = (service: any) => {
-  const modelName = prompt('请输入模型名称:')
-  if (modelName) {
-    service.models.push({
-      name: modelName,
-      description: '自定义模型',
-      enabled: true,
-      color: service.color,
-    })
-    message.success('模型添加成功')
-  }
+  showAddModal.value = true
+  // 重置表单
+  serverForm.pid = service.id
+  serverForm.enabled = true
+
 }
 
 const toggleModel = (service: any, model: any) => {
@@ -450,11 +565,7 @@ const saveServiceConfig = (service: any) => {
 // 本地存储相关方法
 const saveToLocalStorage = () => {
   try {
-    const configData = {
-      services: modelServices.value,
-      lastUpdated: Date.now(),
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(configData))
+    modelServiceStore.selectModelServices(modelServices.value)
     console.log('模型服务配置已保存到本地存储')
   } catch (error) {
     console.error('保存配置到本地存储失败:', error)
@@ -464,9 +575,8 @@ const saveToLocalStorage = () => {
 
 const loadFromLocalStorage = () => {
   try {
-    const savedData = localStorage.getItem(STORAGE_KEY)
-    if (savedData) {
-      const configData = JSON.parse(savedData)
+    if (modelServiceStore.modelServices) {
+      const configData = modelServiceStore.modelServices
       if (configData.services && Array.isArray(configData.services)) {
         // 合并保存的配置和默认配置
         configData.services.forEach((savedService: any) => {
@@ -495,7 +605,7 @@ const loadFromLocalStorage = () => {
 
 const clearLocalStorage = () => {
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    modelServiceStore.deleteModelServices()
     message.success('本地配置已清除')
   } catch (error) {
     console.error('清除本地存储失败:', error)

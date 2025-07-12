@@ -77,6 +77,7 @@ export class PlanAndExecuteAgent {
       modelName: this.config.model,
       temperature: this.config.temperature,
       maxTokens: this.config.maxTokens,
+      streaming: true,
     })
 
     this.setupChains()
@@ -241,9 +242,11 @@ export class PlanAndExecuteAgent {
     const planId = this.generateId()
 
     try {
-      console.log(`[PlanAndExecute] Creating plan for goal: ${goal}`)
+      console.log(`[PlanAndExecute] Creating plan for goal start: ${goal}`)
 
       const planResult = await this.plannerChain.invoke({ goal })
+
+      console.log(`[PlanAndExecute] Creating plan for goal end: ${goal}`)
       const steps = this.parsePlanSteps(planResult)
 
       const plan: ExecutionPlan = {
@@ -756,19 +759,4 @@ export class PlanAndExecuteAgent {
  */
 export function createPlanAndExecuteAgent(config?: PlanAndExecuteConfig): PlanAndExecuteAgent {
   return new PlanAndExecuteAgent(config)
-}
-
-/**
- * 用于美团 AIGC API 的 PlanAndExecute 代理
- */
-export class MeituanPlanAndExecuteAgent extends PlanAndExecuteAgent {
-  constructor(config: PlanAndExecuteConfig & { appId: string }) {
-    const meituanConfig = {
-      ...config,
-      apiKey: config.appId,
-      baseURL: 'https://aigc.sankuai.com/v1/openai/native',
-    }
-
-    super(meituanConfig)
-  }
 }

@@ -7,7 +7,6 @@ import {
   PlanAndExecuteAgent,
   ExecutionPlan,
   PlanStep,
-  MeituanPlanAndExecuteAgent,
 } from './plan-and-execute'
 import { StdioMcpClientToFunction, EnabledMCPServer } from './llm/StdioMcpServerToFunction'
 import { ChatOpenAI } from '@langchain/openai'
@@ -59,7 +58,7 @@ export interface MCPServerConfig {
   maxConnections?: number
   streamingEnabled?: boolean
   enabledMCPServers?: MCPServerInfo[]
-  meituanAIGC?: {
+  AIGC: {
     apiUrl?: string
     appId: string
     defaultModel?: string
@@ -89,34 +88,23 @@ export class MCPServer {
     this.app = express()
     this.setupMiddleware()
     this.setupRoutes()
-    this.initializePlanAgent()
     this.initializeEnabledMCPServers()
   }
 
-  private initializePlanAgent() {
+  private async initializePlanAgent(metadata: any) {
     try {
-      // 如果配置了美团 AIGC，使用美团的 PlanAndExecute 代理
-      if (this.config.meituanAIGC?.appId) {
-        this.planAgent = new MeituanPlanAndExecuteAgent({
-          appId: this.config.meituanAIGC.appId,
-          model: this.config.meituanAIGC.defaultModel || 'gpt-3.5-turbo',
-          temperature: 0.7,
-          maxTokens: 2000,
-          enableReplanning: true,
-          enableSubtaskDecomposition: true,
-        })
-        console.log('[MCP Server] Initialized Meituan PlanAndExecute agent')
-      } else {
-        // 使用默认的 OpenAI 代理（需要配置 API Key）
-        this.planAgent = new PlanAndExecuteAgent({
-          model: 'gpt-3.5-turbo',
-          temperature: 0.7,
-          maxTokens: 2000,
-          enableReplanning: true,
-          enableSubtaskDecomposition: true,
-        })
-        console.log('[MCP Server] Initialized default PlanAndExecute agent')
-      }
+
+      // 使用默认的 OpenAI 代理（需要配置 API Key）
+      this.planAgent = new PlanAndExecuteAgent({
+        model: metadata.model,
+        apiKey: metadata.service.apiKey,
+        // baseURL: metadata.service.baseURL,
+        baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        temperature: 0.7,
+        maxTokens: 2000,
+        enableReplanning: true,
+        enableSubtaskDecomposition: true,
+      })
     } catch (error) {
       console.error('[MCP Server] Failed to initialize PlanAndExecute agent:', error)
       this.planAgent = null
@@ -177,7 +165,7 @@ export class MCPServer {
     // 聊天完成接口 (兼容 OpenAI API)
     this.app.post('/v1/chat/completions', async (req: any, res: any) => {
       try {
-        const { messages, stream = false, model = 'mcp-default', ...options } = req.body
+        const { messages, stream = false, metadata = {}, enabledMCPServers } = req.body
 
         if (!messages || !Array.isArray(messages)) {
           return res.status(400).json({
@@ -193,9 +181,9 @@ export class MCPServer {
         console.log('conversationId', conversationId)
 
         if (stream) {
-          await this.handleStreamingRequest(req, res, messages, model, options, conversationId)
+          await this.handleStreamingRequest(req, res, messages, metadata.model, metadata, conversationId, enabledMCPServers)
         } else {
-          await this.handleNonStreamingRequest(req, res, messages, model, options, conversationId)
+          await this.handleNonStreamingRequest(req, res, messages, metadata.model, metadata, conversationId, enabledMCPServers)
         }
       } catch (error) {
         console.error('[MCP Server] Error in chat completions:', error)
@@ -311,8 +299,10 @@ export class MCPServer {
           message: userMessage,
         })
 
+        // https://dashscope.aliyuncs.com/compatible-mode/v1
+
         // 生成 AI 回复
-        this.generateMCPResponse(userMessage, convId, enabledMCPServers)
+        this.generateMCPResponse(userMessage, convId, enabledMCPServers, metadata)
 
         res.json({
           success: true,
@@ -544,18 +534,6 @@ export class MCPServer {
   }
 
   private setupPlanRoutes() {
-    // {
-    //   "mcpServers": {
-    //   "filesystem": {
-    //     "command": "npx",
-    //       "args": [
-    //       "-y",
-    //       "@modelcontextprotocol/server-filesystem",
-    //       "/Users/jinxin/tangjinxin/vscode"
-    //     ]
-    //   }
-    // }
-    // }
     // 创建执行计划
     this.app.post('/mcp/plan/create', async (req: any, res: any) => {
       try {
@@ -564,6 +542,7 @@ export class MCPServer {
         if (!content || typeof content !== 'string') {
           return res.status(400).json({ error: 'Content (goal) is required' })
         }
+        await this.initializePlanAgent(metadata)
 
         if (!this.planAgent) {
           return res.status(503).json({ error: 'PlanAndExecute agent not available' })
@@ -991,8 +970,9 @@ export class MCPServer {
     res: any,
     messages: any[],
     model: string,
-    options: any,
+    metadata: any,
     conversationId: string,
+    enabledMCPServers: EnabledMCPServer[],
   ) {
     // 设置流式响应头
     res.writeHead(200, {
@@ -1006,10 +986,8 @@ export class MCPServer {
     const created = Math.floor(Date.now() / 1000)
 
     try {
-      // 如果配置了美团 AIGC，则调用真实 API
-      console.log('this.config.meituanAIGC?.appId', this.config.meituanAIGC?.appId)
-      if (this.config.meituanAIGC?.appId) {
-        const response = await this.callMeituanAIGC(messages, true, model, undefined)
+      if (model) {
+        const response = await this.callAIGC(messages, true, model, enabledMCPServers, metadata)
         let fullContent = ''
 
         response.data.on('data', (chunk: Buffer) => {
@@ -1041,13 +1019,11 @@ export class MCPServer {
 
               let deltaContent = ''
 
-              // 处理美团 AIGC API 的响应格式
               // 优先使用标准的 delta.content 格式
               if (data.choices?.[0]?.delta?.content) {
                 deltaContent = data.choices[0].delta.content
               }
               // 如果没有 delta.content，则忽略 data.content（避免重复）
-              // 因为美团 AIGC API 会同时返回两种格式，我们只需要增量内容
 
               if (deltaContent) {
                 fullContent += deltaContent
@@ -1100,7 +1076,7 @@ export class MCPServer {
             role: 'assistant',
             content: fullContent,
             timestamp: Date.now(),
-            metadata: { model, ...options },
+            metadata: { model },
           }
 
           if (!this.conversations.has(conversationId)) {
@@ -1164,7 +1140,7 @@ export class MCPServer {
               role: 'assistant',
               content: fullResponse,
               timestamp: Date.now(),
-              metadata: { model, ...options },
+              metadata,
             }
 
             if (!this.conversations.has(conversationId)) {
@@ -1196,17 +1172,17 @@ export class MCPServer {
     res: any,
     messages: any[],
     model: string,
-    options: any,
+    metadata: any,
     conversationId: string,
+    enabledMCPServers: EnabledMCPServer[],
   ) {
     const responseId = this.generateId()
     const created = Math.floor(Date.now() / 1000)
     let responseContent = ''
 
     try {
-      // 如果配置了美团 AIGC，则调用真实 API
-      if (this.config.meituanAIGC?.appId) {
-        const response = await this.callMeituanAIGC(messages, false, model, undefined)
+      if (model) {
+        const response = await this.callAIGC(messages, false, model, enabledMCPServers, null)
         responseContent = response.data.choices[0].message.content
       } else {
         // 回退到模拟响应
@@ -1247,7 +1223,7 @@ export class MCPServer {
       role: 'assistant',
       content: responseContent,
       timestamp: Date.now(),
-      metadata: { model, ...options },
+      metadata,
     }
 
     if (!this.conversations.has(conversationId)) {
@@ -1258,12 +1234,11 @@ export class MCPServer {
     res.json(response)
   }
 
-  private async generateMCPResponse(userMessage: MCPMessage, conversationId: string, enabledMCPServers?: EnabledMCPServer[]) {
+  private async generateMCPResponse(userMessage: MCPMessage, conversationId: string, enabledMCPServers: EnabledMCPServer[], metadata: any) {
     const assistantMessageId = this.generateId()
 
     try {
-      // 如果配置了美团 AIGC，则调用真实 API
-      if (this.config.meituanAIGC?.appId) {
+      if (metadata && metadata.model) {
         // 获取对话历史，构建完整的消息上下文
         const conversationHistory = this.conversations.get(conversationId) || []
         const messages = conversationHistory.map(msg => ({
@@ -1271,10 +1246,10 @@ export class MCPServer {
           content: msg.content,
         }))
 
-        console.log('[MCP Server] Calling Meituan AIGC API for MCP chat...')
+        console.log('[MCP Server] Calling AIGC API for MCP chat...')
 
-        // 调用美团 AIGC API（可能包含工具调用）
-        const response = await this.callMeituanAIGC(messages, true, undefined, enabledMCPServers)
+        // 调用 AIGC API（可能包含工具调用）
+        const response = await this.callAIGC(messages, true, metadata.model, enabledMCPServers, metadata)
 
         console.log('[MCP Server] Response type:', typeof response.data)
 
@@ -1315,14 +1290,12 @@ export class MCPServer {
                 log('[MCP Server] Parsed data:', data.choices?.[0]?.delta)
                 let deltaContent = ''
 
-                // 处理美团 AIGC API 的响应格式
                 // 优先使用标准的 delta.content 格式
                 if (data.choices?.[0]?.delta?.content) {
                   deltaContent = data.choices[0].delta.content
                 }
                 log('[MCP Server] Delta content:', deltaContent)
                 // 如果没有 delta.content，则忽略 data.content（避免重复）
-                // 因为美团 AIGC API 会同时返回两种格式，我们只需要增量内容
 
                 if (deltaContent !== '') {
                   fullContent += deltaContent
@@ -1352,7 +1325,7 @@ export class MCPServer {
               content: fullContent,
               timestamp: Date.now(),
               metadata: {
-                model: this.config.meituanAIGC?.defaultModel || 'gpt-3.5-turbo',
+                model: metadata.model,
                 stream: true,
               },
             }
@@ -1369,11 +1342,11 @@ export class MCPServer {
               },
             })
 
-            console.log('[MCP Server] Meituan AIGC API response completed for MCP chat')
+            console.log('[MCP Server] AIGC API response completed for MCP chat')
           })
 
           response.data.on('error', (error: any) => {
-            console.error('[MCP Server] Meituan AIGC API stream error in MCP chat:', error)
+            console.error('[MCP Server] AIGC API stream error in MCP chat:', error)
             // 回退到模拟响应
             this.generateMockMCPResponse(userMessage, conversationId, assistantMessageId)
           })
@@ -1428,7 +1401,7 @@ export class MCPServer {
           content: content,
           timestamp: Date.now(),
           metadata: {
-            model: this.config.meituanAIGC?.defaultModel || 'gpt-3.5-turbo',
+            model: 'default',
             stream: false,
           },
         }
@@ -1575,6 +1548,7 @@ export class MCPServer {
     stream: boolean,
     model: string,
     enabledMCPServers: EnabledMCPServer[],
+    metadata: any,
   ): Promise<any> {
     try {
       console.log('[MCP Server] Using langchain for tool calling')
@@ -1586,27 +1560,23 @@ export class MCPServer {
       // 检查是否有可用的工具
       if (!mcpClient.allMcpServer?.tools || mcpClient.allMcpServer.tools.length === 0) {
         console.log('[MCP Server] No MCP tools available, falling back to direct API call')
-        return this.callMeituanAIGC(messages, stream, model)
+        return this.callAIGC(messages, stream, model, [], metadata)
       }
-      // 创建 ChatOpenAI 实例，使用美团 AIGC 配置
-      const baseURL = (this.config.meituanAIGC?.apiUrl || 'https://aigc.sankuai.com/v1/openai/native').replace('/chat/completions', '')
+      // 创建 ChatOpenAI 实例，使用AIGC 配置
+      const baseURL = metadata.service.apiUrl
       console.log('[MCP Server] LangChain configuration:')
       console.log('  - baseURL:', baseURL)
       console.log('  - model:', model)
-      console.log('  - appId:', this.config.meituanAIGC?.appId ? '***' + this.config.meituanAIGC.appId.slice(-4) : 'undefined')
 
       const llm = new ChatOpenAI({
-        openAIApiKey: this.config.meituanAIGC?.appId,
+        openAIApiKey: metadata.service.apiKey,
         configuration: {
           baseURL,
-          defaultHeaders: {
-            'Authorization': `Bearer ${this.config.meituanAIGC?.appId}`,
-          },
         },
-        modelName: model,
-        streaming: false, // 暂时禁用流式，避免复杂性
+        model,
         temperature: 0.7,
         maxTokens: 2000,
+        streaming: true,
       })
 
       // 将 MCP 工具转换为 langchain 工具
@@ -1716,29 +1686,27 @@ export class MCPServer {
     } catch (error) {
       console.error('[MCP Server] Error in langchain tool calling:', error)
       console.log('[MCP Server] Falling back to direct API call due to langchain error')
-      // 回退到直接调用美团 AIGC API
-      return this.callMeituanAIGC(messages, stream, model)
+      return this.callAIGC(messages, stream, model, [], null)
     }
   }
 
-  private async callMeituanAIGC(
+  private async callAIGC(
     messages: any[],
     stream = false,
-    model?: string,
-    enabledMCPServers?: EnabledMCPServer[],
+    model: string,
+    enabledMCPServers: EnabledMCPServer[],
+    metadata: any,
   ): Promise<any> {
-    if (!this.config.meituanAIGC?.appId) {
-      throw new Error('Meituan AIGC configuration is missing')
+    if (!model) {
+      throw new Error('model 不能为空')
     }
-
-    const apiUrl = this.config.meituanAIGC.apiUrl || 'https://aigc.sankuai.com/v1/openai/native/chat/completions'
-    const requestModel = model || this.config.meituanAIGC.defaultModel || 'gpt-3.5-turbo'
-    console.log('enabledMCPServers', enabledMCPServers)
+    const apiUrl = metadata.service.apiUrl
+    const requestModel = model
 
     // 如果有工具调用需求，使用 langchain 进行处理
     if (enabledMCPServers && enabledMCPServers.length > 0) {
       try {
-        return await this.handleToolCallingWithLangchain(messages, stream, requestModel, enabledMCPServers)
+        return await this.handleToolCallingWithLangchain(messages, stream, requestModel, enabledMCPServers, metadata)
       } catch (error) {
         console.error('[MCP Server] Tool calling failed, falling back to direct API call:', error)
         // 继续执行直接API调用
@@ -1752,7 +1720,7 @@ export class MCPServer {
     }
 
     const headers = {
-      'Authorization': `Bearer ${this.config.meituanAIGC.appId}`,
+      'Authorization': `Bearer ${metadata.service.apiKey}`,
       'Content-Type': 'application/json',
     }
 
@@ -1764,7 +1732,7 @@ export class MCPServer {
 
       return response
     } catch (error) {
-      console.error('[MCP Server] Error calling Meituan AIGC API:', error)
+      console.error('[MCP Server] Error calling AIGC API:', error)
       throw error
     }
   }

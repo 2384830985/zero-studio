@@ -20,180 +20,14 @@
           </div>
         </div>
         <div class="flex items-center space-x-2">
-          <a-dropdown
-            v-model:open="showUsePlanMode"
-            placement="bottomLeft"
-            :trigger="['click']"
-            @click.prevent
-          >
-            <a-button size="small">
-              <template #icon>
-                <SettingOutlined />
-              </template>
-              {{ usePlanModeName }}
-            </a-button>
-            <template #overlay>
-              <a-menu
-                class="max-h-80 overflow-y-auto"
-              >
-                <template
-                  v-for="usePlanModeItem in UsePlanModeList"
-                  :key="usePlanModeItem.value"
-                >
-                  <a-menu-item @click="selectUsePlanMode(usePlanModeItem)">
-                    <div class="flex items-center space-x-3">
-                      <div class="flex-1 min-w-0">
-                        <div class="text-sm font-medium text-gray-900 truncate">
-                          {{ usePlanModeItem.name }}
-                        </div>
-                      </div>
-                    </div>
-                  </a-menu-item>
-                </template>
-              </a-menu>
-            </template>
-          </a-dropdown>
+          <!-- 选择模块 -->
+          <ChatModel />
 
           <!-- 模型选择器 -->
-          <a-dropdown
-            v-model:open="showModelSelector"
-            placement="bottomRight"
-            :trigger="['click']"
-          >
-            <a-button size="small">
-              <template #icon>
-                <SettingOutlined />
-              </template>
-              {{ selectedModel ? `${selectedModel.service.name} - ${selectedModel.model.name}` : '选择模型' }}
-            </a-button>
-            <template #overlay>
-              <a-menu
-                class="max-h-80 overflow-y-auto"
-                style="min-width: 300px;"
-              >
-                <template
-                  v-for="service in enabledModelServices"
-                  :key="service.id"
-                >
-                  <a-menu-item-group :title="service.name">
-                    <a-menu-item
-                      v-for="model in service.models.filter(m => m.enabled)"
-                      :key="`${service.id}-${model.name}`"
-                      @click="selectModel(service, model)"
-                    >
-                      <div class="flex items-center space-x-3">
-                        <div
-                          class="w-4 h-4 rounded-full flex-shrink-0"
-                          :style="{ backgroundColor: model.color || service.color }"
-                        />
-                        <div class="flex-1 min-w-0">
-                          <div class="text-sm font-medium text-gray-900 truncate">
-                            {{ model.name }}
-                          </div>
-                          <div class="text-xs text-gray-500 truncate">
-                            {{ model.description }}
-                          </div>
-                        </div>
-                        <div
-                          v-if="selectedModel?.service.id === service.id && selectedModel?.model.name === model.name"
-                          class="text-blue-500 text-xs"
-                        >
-                          ✓
-                        </div>
-                      </div>
-                    </a-menu-item>
-                  </a-menu-item-group>
-                </template>
-                <a-menu-divider v-if="enabledModelServices.length > 0" />
-                <a-menu-item @click="$router.push('/settings/model')">
-                  <div class="flex items-center space-x-2 text-gray-500">
-                    <SettingOutlined />
-                    <span>管理模型服务</span>
-                  </div>
-                </a-menu-item>
-              </a-menu>
-            </template>
-          </a-dropdown>
+          <ChatModelServer />
 
           <!-- MCP 选择器 -->
-          <a-dropdown
-            v-model:open="showMCPSelector"
-            placement="bottomRight"
-            :trigger="['click']"
-          >
-            <a-button size="small">
-              <template #icon>
-                <ApiOutlined />
-              </template>
-              {{ selectedMCPServers.length > 0 ? `${selectedMCPServers.length} 个 MCP` : '选择 MCP' }}
-            </a-button>
-            <template #overlay>
-              <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-4 min-w-[300px] max-h-80 overflow-y-auto">
-                <div class="flex items-center justify-between mb-3">
-                  <span class="text-sm font-medium text-gray-900">MCP 服务器</span>
-                  <a-button
-                    type="link"
-                    size="small"
-                    @click="$router.push('/settings/mcp')"
-                  >
-                    管理
-                  </a-button>
-                </div>
-
-                <div
-                  v-if="enabledMCPServers.length === 0"
-                  class="text-center py-4"
-                >
-                  <div class="text-gray-400 mb-2">
-                    <ApiOutlined class="text-2xl" />
-                  </div>
-                  <p class="text-sm text-gray-500 mb-3">
-                    暂无可用的 MCP 服务器
-                  </p>
-                  <a-button
-                    type="primary"
-                    size="small"
-                    @click="$router.push('/settings/mcp')"
-                  >
-                    添加 MCP 服务器
-                  </a-button>
-                </div>
-
-                <div
-                  v-else
-                  class="space-y-2"
-                >
-                  <div
-                    v-for="server in enabledMCPServers"
-                    :key="server.id"
-                    class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    @click="toggleMCPServer(server.id)"
-                  >
-                    <div class="flex items-center space-x-3">
-                      <div
-                        class="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
-                        :style="{ backgroundColor: server.color || '#6b7280' }"
-                      >
-                        {{ server.name.charAt(0).toUpperCase() }}
-                      </div>
-                      <div>
-                        <div class="text-sm font-medium text-gray-900">
-                          {{ server.name }}
-                        </div>
-                        <div class="text-xs text-gray-500">
-                          {{ server.tools.length }} 个工具
-                        </div>
-                      </div>
-                    </div>
-                    <a-checkbox
-                      :checked="selectedMCPServers.includes(server.id)"
-                      @click.stop="toggleMCPServer(server.id)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </template>
-          </a-dropdown>
+          <ChatMcp />
 
           <a-button
             size="small"
@@ -413,17 +247,22 @@ import {
   LinkOutlined,
   GlobalOutlined,
   ArrowUpOutlined,
-  SettingOutlined,
-  ApiOutlined,
 } from '@ant-design/icons-vue'
-import { createSettingsStorage, STORAGE_KEYS } from '../../utils/settingsStorage'
 import { getEnabledMCPServers } from '../../utils/mcpManager'
 import ExecutionEnvironment from '../../components/ExecutionEnvironment.vue'
-import { useChatStore, USE_PLAN_MODE, IUsePlanMode  } from '@/store'
-import type { MCPMessage, MCPConversation, MCPServerStats, ModelInfo, ModelService } from './chat.type'
+import { USE_PLAN_MODE, useChatStore  } from '@/store'
+import type { MCPMessage, MCPConversation, MCPServerStats } from './chat.type'
 import {PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
+import ChatModel from '@/views/chat/components/chatModel.vue'
+import ChatMcp from '@/views/chat/components/chatMcp.vue'
+import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
 
 const chatStore = useChatStore()
+
+// MCP 相关数据
+const selectedMCPServers = computed(() => chatStore.selectedMCPServers)
+const usePlanModeName = computed(() => chatStore.usePlanModeName)
+const selectedModel = computed(() => chatStore.selectedModel)
 
 // 响应式数据
 const messages = ref<MCPMessage[]>([])
@@ -435,15 +274,6 @@ const currentConversationId = ref<string>('')
 const conversations = ref<MCPConversation[]>([])
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
-const showUsePlanMode = ref(false)
-
-// 模型相关数据
-const modelServices = ref<ModelService[]>([])
-const selectedModel = ref<{ service: ModelService; model: ModelInfo } | null>(null)
-const showModelSelector = ref(false)
-
-
-const showMCPSelector = ref(false)
 
 // DOM 引用
 const messagesContainer = ref<HTMLElement>()
@@ -455,15 +285,6 @@ let eventSource: EventSource | null = null
 const isConnected = computed(() => connectionStatus.value === 'connected')
 
 const usePlanMode = computed(() => chatStore.usePlanMode)
-const UsePlanModeList = computed(() => chatStore.UsePlanModeList)
-const usePlanModeName = computed(() => chatStore.usePlanModeName)
-// MCP 相关数据
-const selectedMCPServers = computed(() => chatStore.selectedMCPServers)
-
-// 获取启用的模型服务
-const enabledModelServices = computed(() => {
-  return modelServices.value.filter(service => service.enabled && service.models.some(m => m.enabled))
-})
 
 // 获取启用的MCP服务器
 const enabledMCPServers = computed(() => {
@@ -733,57 +554,6 @@ const loadConversations = async () => {
   }
 }
 
-// 加载模型服务配置
-const loadModelServices = () => {
-  try {
-    const storage = createSettingsStorage(STORAGE_KEYS.MODEL_SERVICES)
-    const savedData = storage.load()
-
-    if (savedData && savedData.services && Array.isArray(savedData.services)) {
-      modelServices.value = savedData.services
-      console.log('[MCP Chat] 模型服务配置加载成功:', modelServices.value.length, '个服务')
-
-      // 如果没有选中的模型，自动选择第一个启用的模型
-      if (!selectedModel.value && enabledModelServices.value.length > 0) {
-        const firstService = enabledModelServices.value[0]
-        const firstModel = firstService.models.find(m => m.enabled)
-        if (firstModel) {
-          selectModel(firstService, firstModel)
-        }
-      }
-    } else {
-      console.log('[MCP Chat] 没有找到保存的模型服务配置')
-    }
-  } catch (error) {
-    console.error('[MCP Chat] 加载模型服务配置失败:', error)
-  }
-}
-
-// 选择模型
-const selectModel = (service: ModelService, model: ModelInfo) => {
-  selectedModel.value = { service, model }
-  showModelSelector.value = false
-  console.log('[MCP Chat] 选择模型:', service.name, '-', model.name)
-  antMessage.success(`已选择模型: ${service.name} - ${model.name}`)
-}
-
-/**
- * 选择当前的模式
- * @param item
- */
-const selectUsePlanMode = (item: IUsePlanMode) => {
-  showUsePlanMode.value = false
-  chatStore.selectUsePlanMode(item.value)
-}
-
-// 切换MCP服务器选择
-const toggleMCPServer = (serverId: string) => {
-  const index = chatStore.toggleMCPServer(serverId)
-  const serverName = enabledMCPServers.value.find(s => s.id === serverId)?.name || serverId
-  const action = index > -1 ? '取消选择' : '选择'
-  console.log(`[MCP Chat] ${action} MCP 服务器:`, serverName)
-}
-
 // 定期更新统计信息
 let statsInterval: NodeJS.Timeout | null = null
 
@@ -791,7 +561,6 @@ onMounted(() => {
   connectToMCPServer()
   loadServerStats()
   loadConversations()
-  loadModelServices()
 
   // 每5秒更新一次统计信息
   statsInterval = setInterval(() => {
