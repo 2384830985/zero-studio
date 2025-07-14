@@ -4,7 +4,7 @@ import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import { log } from 'node:console'
-import { MCPServer } from './mcp-server'
+import { BigServer } from './server'
 import { runInstallScript, isBinaryExists, getBinaryPath } from './utils/process'
 import { execSync } from 'child_process'
 import dotenv from 'dotenv'
@@ -42,9 +42,6 @@ console.log('Environment variables at startup:', {
   NODE_ENV: process.env.NODE_ENV,
   ELECTRON: process.env.ELECTRON,
   VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL,
-  MEITUAN_AIGC_APP_ID: process.env.MEITUAN_AIGC_APP_ID || 'not set',
-  MEITUAN_AIGC_API_URL: process.env.MEITUAN_AIGC_API_URL || 'not set',
-  MEITUAN_AIGC_DEFAULT_MODEL: process.env.MEITUAN_AIGC_DEFAULT_MODEL || 'not set',
   MCP_SERVER_PORT: process.env.MCP_SERVER_PORT || 'not set',
 })
 
@@ -80,7 +77,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
-let mcpServer: MCPServer | null = null
+let bigServer: BigServer | null = null
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
@@ -161,30 +158,13 @@ app.whenReady().then(async () => {
 
   // 启动 MCP 服务器
   try {
-    log('Starting MCP Server...', process.env.MEITUAN_AIGC_APP_ID)
-    const meituanConfig = process.env.MEITUAN_AIGC_APP_ID ? {
-      // 美团 AIGC API 地址
-      apiUrl: process.env.MEITUAN_AIGC_API_URL,
-      // 从环境变量获取 AppId
-      appId: process.env.MEITUAN_AIGC_APP_ID,
-      // 默认模型
-      defaultModel: process.env.MEITUAN_AIGC_DEFAULT_MODEL || 'deepseek-v3-friday',
-    } : undefined
-
-    mcpServer = new MCPServer({
+    bigServer = new BigServer({
       port: parseInt(process.env.MCP_SERVER_PORT || '3002'),
       enableCors: true,
       streamingEnabled: true,
-      meituanAIGC: meituanConfig,
     })
-    await mcpServer.start()
+    await bigServer.start()
     console.log('✅ MCP Server started successfully')
-
-    if (meituanConfig) {
-      console.log('✅ Meituan AIGC API configured')
-    } else {
-      console.log('⚠️  Meituan AIGC API not configured - using mock responses')
-    }
   } catch (error) {
     console.error('❌ Failed to start MCP Server:', error)
   }
@@ -210,14 +190,14 @@ app.on('window-all-closed', async () => {
   win = null
 
   // 停止 MCP 服务器
-  if (mcpServer) {
+  if (bigServer) {
     try {
-      await mcpServer.stop()
-      console.log('✅ MCP Server stopped')
+      await bigServer.stop()
+      console.log('✅ Server stopped')
     } catch (error) {
-      console.error('❌ Error stopping MCP Server:', error)
+      console.error('❌ Error stopping Server:', error)
     }
-    mcpServer = null
+    bigServer = null
   }
 
   if (process.platform !== 'darwin') {app.quit()}
@@ -378,15 +358,15 @@ if (process.env.NODE_ENV === 'development') {
 
   // MCP 服务器相关的 IPC 处理器
   ipcMain.handle('get-mcp-server-stats', () => {
-    if (mcpServer) {
-      return mcpServer.getStats()
+    if (bigServer) {
+      return bigServer.getStats()
     }
     return null
   })
 
   ipcMain.handle('get-mcp-conversations', () => {
-    if (mcpServer) {
-      return mcpServer.getConversations()
+    if (bigServer) {
+      return bigServer.getConversations()
     }
     return []
   })
