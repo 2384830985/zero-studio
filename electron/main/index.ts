@@ -167,7 +167,7 @@ app.whenReady().then(async () => {
       port: parseInt(process.env.MCP_SERVER_PORT || '3002'),
       enableCors: true,
       streamingEnabled: true,
-    })
+    }, win as BrowserWindow)
     await bigServer.start()
     console.log('✅ MCP Server started successfully')
   } catch (error) {

@@ -1,8 +1,8 @@
 import { PlanAndExecuteAgent, ExecutionPlan, PlanStep } from '../../plan-and-execute'
 import { MCPMessage } from '../types'
 import { ConversationService } from './ConversationService'
-import { SSEService } from './SSEService'
 import { generateId } from '../utils/helpers'
+import {BrowserWindow} from 'electron'
 
 /**
  * 计划执行服务类
@@ -12,11 +12,11 @@ export class PlanService {
   private planAgent: PlanAndExecuteAgent | null = null
   private executionPlans: Map<string, ExecutionPlan> = new Map()
   private conversationService: ConversationService
-  private sseService: SSEService
+  private win: BrowserWindow
 
-  constructor(conversationService: ConversationService, sseService: SSEService) {
+  constructor(conversationService: ConversationService, win: BrowserWindow) {
     this.conversationService = conversationService
-    this.sseService = sseService
+    this.win = win
   }
 
   /**
@@ -100,7 +100,7 @@ export class PlanService {
       currentContent += '\n🚀 **开始执行**...\n\n'
 
       // 广播初始计划消息
-      this.sseService.broadcastSSEMessage('streaming', {
+      this.win.webContents.send('streaming', {
         conversationId,
         messageId: assistantMessageId,
         role: 'assistant',
@@ -142,7 +142,7 @@ export class PlanService {
         currentContent += stepContent + '\n'
 
         // 广播步骤更新
-        this.sseService.broadcastSSEMessage('streaming', {
+        this.win.webContents.send('streaming', {
           conversationId,
           messageId: assistantMessageId,
           role: 'assistant',
@@ -190,7 +190,7 @@ export class PlanService {
       this.conversationService.addMessage(conversationId, finalMessage)
 
       // 广播最终消息
-      this.sseService.broadcastSSEMessage('message', {
+      this.win.webContents.send('message', {
         conversationId,
         message: finalMessage,
       })
@@ -212,7 +212,7 @@ export class PlanService {
       this.conversationService.addMessage(conversationId, errorMessage)
 
       // 广播错误消息
-      this.sseService.broadcastSSEMessage('message', {
+      this.win.webContents.send('message', {
         conversationId,
         message: errorMessage,
       })

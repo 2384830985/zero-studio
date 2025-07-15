@@ -75,7 +75,6 @@ export interface ConversationSummary {
 }
 
 export interface ServerStats {
-  connectedClients: number
   totalConversations: number
   totalMessages: number
   port: number

@@ -263,9 +263,9 @@ const chatStore = useChatStore()
 const selectedMCPServers = computed(() => chatStore.selectedMCPServers)
 const usePlanModeName = computed(() => chatStore.usePlanModeName)
 const selectedModel = computed(() => chatStore.selectedModel)
-
 // 响应式数据
-const messages = ref<MCPMessage[]>([])
+const messages = computed(() => chatStore.messages)
+
 const streamingMessage = ref<MCPMessage | null>(null)
 const inputMessage = ref('')
 const isSending = ref(false)
@@ -278,11 +278,8 @@ const showStats = ref(false)
 // DOM 引用
 const messagesContainer = ref<HTMLElement>()
 
-// EventSource 连接
-let eventSource: EventSource | null = null
-
 // 计算属性
-const isConnected = computed(() => connectionStatus.value === 'connected')
+const isConnected = computed(() => true)
 
 const usePlanMode = computed(() => chatStore.usePlanMode)
 
@@ -319,92 +316,37 @@ const scrollToBottom = () => {
 
 // 连接到 MCP 服务器
 const connectToMCPServer = async () => {
-  if (eventSource) {
-    eventSource.close()
-  }
 
   try {
-    connectionStatus.value = 'connecting'
-
-    const url = currentConversationId.value
-      ? `http://localhost:3002/mcp/chat/stream/${currentConversationId.value}`
-      : 'http://localhost:3002/mcp/chat/stream'
-
-    eventSource = new EventSource(url)
-
-    eventSource.onopen = () => {
-      connectionStatus.value = 'connected'
-      console.log('[MCP Chat] Connected to MCP server')
-    }
-
-    eventSource.onerror = (error) => {
-      console.error('[MCP Chat] EventSource error:', error)
-      connectionStatus.value = 'disconnected'
-      antMessage.error('连接 MCP 服务器失败')
-    }
-
-    eventSource.addEventListener('connected', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('[MCP Chat] Connected:', data)
-      if (data.conversationId && !currentConversationId.value) {
-        currentConversationId.value = data.conversationId
+    // 监听主进程的回复
+    window.ipcRenderer.on('streaming', (_event, message) => {
+      streamingMessage.value = {
+        id: message.messageId,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
       }
+      scrollToBottom()
     })
-
-    eventSource.addEventListener('history', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('[MCP Chat] History received:', data)
-      if (data.messages) {
-        messages.value = data.messages
-        scrollToBottom()
-      }
-    })
-
-    eventSource.addEventListener('message', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('[MCP Chat] Message received:', data)
-
-      if (data.message) {
-        const existingIndex = messages.value.findIndex(m => m.id === data.message.id)
+    // 监听主进程的回复
+    window.ipcRenderer.on('message', (_event, message) => {
+      if (message.message) {
+        const existingIndex = messages.value.findIndex(m => m.id === message.message.id)
         if (existingIndex >= 0) {
-          messages.value[existingIndex] = data.message
+          chatStore.spliceMessages(message.message)
         } else {
-          messages.value.push(data.message)
+          chatStore.pushMessages(message.message)
         }
         streamingMessage.value = null
         scrollToBottom()
       }
     })
-
-    eventSource.addEventListener('streaming', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('[MCP Chat] Streaming:', data)
-
-      streamingMessage.value = {
-        id: data.messageId,
-        role: data.role,
-        content: data.content,
-        timestamp: data.timestamp,
-      }
-      scrollToBottom()
-    })
-
-    eventSource.addEventListener('conversation_cleared', (event) => {
-      const data = JSON.parse(event.data)
-      console.log('[MCP Chat] Conversation cleared:', data)
-      messages.value = []
-      streamingMessage.value = null
-      antMessage.info('对话已清空')
-    })
-
   } catch (error) {
     console.error('[MCP Chat] Failed to connect:', error)
     connectionStatus.value = 'disconnected'
     antMessage.error('无法连接到 MCP 服务器')
   }
 }
-
-console.log('selectedMCPServers', enabledMCPServers.value)
 
 // 发送消息
 const sendMessage = async () => {
@@ -452,15 +394,15 @@ const sendMessage = async () => {
       }).filter(item => selectedMCPServersObj[item.id]),
     })
 
-    if (!response.data.conversationId) {
+    if (!response.conversationId) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
     // 请求成功后清空输入框
     inputMessage.value = ''
 
-    if (response.data.conversationId && response.data.conversationId !== currentConversationId.value) {
-      currentConversationId.value = response.data.conversationId
+    if (response.conversationId && response.conversationId !== currentConversationId.value) {
+      currentConversationId.value = response.conversationId
     }
 
   } catch (error) {
@@ -482,7 +424,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
 // 开始新对话
 const startNewConversation = () => {
   currentConversationId.value = ''
-  messages.value = []
+  chatStore.clearMessages()
   streamingMessage.value = null
   connectToMCPServer()
   loadConversations()
@@ -495,7 +437,7 @@ const switchConversation = (conversationId: string) => {
   }
 
   currentConversationId.value = conversationId
-  messages.value = []
+  chatStore.clearMessages()
   streamingMessage.value = null
   connectToMCPServer()
 }
@@ -507,14 +449,6 @@ const clearCurrentConversation = async () => {
   }
 
   try {
-    const response = await fetch(`http://localhost:3002/mcp/conversations/${currentConversationId.value}`, {
-      method: 'DELETE',
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
     console.log('[MCP Chat] Conversation cleared')
     loadConversations()
   } catch (error) {
@@ -555,7 +489,7 @@ const loadConversations = async () => {
 }
 
 // 定期更新统计信息
-let statsInterval: NodeJS.Timeout | null = null
+const statsInterval: NodeJS.Timeout | null = null
 
 onMounted(() => {
   connectToMCPServer()
@@ -563,18 +497,15 @@ onMounted(() => {
   loadConversations()
 
   // 每5秒更新一次统计信息
-  statsInterval = setInterval(() => {
-    if (showStats.value) {
-      loadServerStats()
-    }
-    loadConversations()
-  }, 5000)
+  // statsInterval = setInterval(() => {
+  //   if (showStats.value) {
+  //     loadServerStats()
+  //   }
+  //   loadConversations()
+  // }, 5000)
 })
 
 onUnmounted(() => {
-  if (eventSource) {
-    eventSource.close()
-  }
   if (statsInterval) {
     clearInterval(statsInterval)
   }

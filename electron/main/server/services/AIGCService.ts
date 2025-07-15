@@ -94,6 +94,7 @@ export class AIGCService {
 
         // 如果有工具调用，需要再次调用 LLM 获取最终回复
         const finalMessages = [...langchainMessages, response, ...toolMessages]
+        console.log('finalMessages', finalMessages)
         // 转换为标准格式返回
         return await llmWithTools.invoke(finalMessages)
       }
@@ -120,6 +121,9 @@ export class AIGCService {
     if (!model) {
       throw new Error('model 不能为空')
     }
+    if (!metadata) {
+      throw new Error('metadata 不能为空')
+    }
     // 如果有工具调用需求，使用 langchain 进行处理
     if (enabledMCPServers && enabledMCPServers.length > 0) {
       try {
@@ -131,6 +135,7 @@ export class AIGCService {
     }
 
     try {
+      console.log('metadata', metadata)
       return new ChatOpenAI({
         openAIApiKey: metadata.service.apiKey,
         configuration: {

@@ -373,7 +373,6 @@ export class StdioMcpClientToFunction {
         name: toolName,
         arguments: {
           ...toolArgs,
-          path: '.',
         },
       })
       return result

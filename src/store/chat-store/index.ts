@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type {ModelInfo, ModelService} from '@/views/chat/chat.type.ts'
+import type {MCPMessage, ModelInfo, ModelService} from '@/views/chat/chat.type.ts'
 
 export enum USE_PLAN_MODE {
   // 问答模式
@@ -19,6 +19,7 @@ interface IIseChatStore {
   UsePlanModeList: IUsePlanMode[],
   usePlanMode: USE_PLAN_MODE,
   selectedMCPServers: string[],
+  messages: MCPMessage[],
   selectedModel?: {
     service: ModelService,
     model: ModelInfo
@@ -46,6 +47,7 @@ export const useChatStore = defineStore('chat', {
       UsePlanModeList,
       usePlanMode: USE_PLAN_MODE.QUEST_ANSWERS,
       selectedMCPServers: [],
+      messages: [],
       selectedModel: undefined,
     }
   },
@@ -60,6 +62,15 @@ export const useChatStore = defineStore('chat', {
     },
     selectSettingModel (service: ModelService, model: ModelInfo) {
       this.selectedModel = { service, model }
+    },
+    clearMessages () {
+      this.messages = []
+    },
+    pushMessages (message: MCPMessage) {
+      this.messages.push(message)
+    },
+    spliceMessages (index: number, message: MCPMessage) {
+      this.messages[index] = message
     },
     toggleMCPServer (serverId: string){
       const index = this.selectedMCPServers.indexOf(serverId)

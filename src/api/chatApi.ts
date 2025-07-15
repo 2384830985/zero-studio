@@ -1,12 +1,6 @@
-import axios from 'axios'
-
 export const PostChatSendApi = async (obj: object) => {
-  return axios.post('http://localhost:3002/mcp/chat/send', {
-    ...obj,
-  })
+  return window?.ipcRenderer?.invoke('chat-send', JSON.stringify(obj))
 }
 export const PostPlanCreateApi = async (obj: object) => {
-  return axios.post('http://localhost:3002/mcp/plan/create', {
-    ...obj,
-  })
+  return window?.ipcRenderer?.invoke('plan-create', JSON.stringify(obj))
 }
