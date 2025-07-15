@@ -1,6 +1,11 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Tool, Prompt, Resource } from '@modelcontextprotocol/sdk/types.js'
+// import { SSEClientTransport, SSEClientTransportOptions } from '@modelcontextprotocol/sdk/client/sse.js'
+// import {
+//   StreamableHTTPClientTransport,
+//   type StreamableHTTPClientTransportOptions,
+// } from '@modelcontextprotocol/sdk/client/streamableHttp'
 import { log } from 'console'
 import {getBinaryPath} from '../utils/process'
 import path from 'node:path'
@@ -354,11 +359,22 @@ export class StdioMcpClientToFunction {
     }
     console.log(toolIndex)
 
+    // 确保参数是有效的，特别是检查 path 参数
+    if (toolArgs.name === 'list_directory' && (!toolArgs.args || !toolArgs.args.path)) {
+      console.warn('[AIGC Service] Missing required path parameter for list_directory')
+      // 可以设置默认值或返回错误信息
+      toolArgs.args = { path: '.' } // 设置默认值为当前目录
+    }
+
     try {
+      console.log('toolArgs', toolArgs)
       // 调用工具
       const result = await this.clients[toolIndex].callTool({
         name: toolName,
-        arguments: toolArgs,
+        arguments: {
+          ...toolArgs,
+          path: '.',
+        },
       })
       return result
     } catch (error) {

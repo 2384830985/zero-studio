@@ -1,12 +1,13 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import { log } from 'node:console'
 import { BigServer } from './server'
-import { runInstallScript, isBinaryExists, getBinaryPath } from './utils/process'
-import { execSync } from 'child_process'
+// import { runInstallScript, isBinaryExists, getBinaryPath } from './utils/process'
+// import { execSync } from 'child_process'
+import { registerIpc } from './ipc'
 import dotenv from 'dotenv'
 
 // 加载环境变量文件（根据环境选择不同文件）
@@ -109,6 +110,8 @@ async function createWindow() {
     },
   })
 
+
+
   if (VITE_DEV_SERVER_URL) { // #298
     log('VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
 
@@ -149,6 +152,8 @@ async function createWindow() {
     if (url.startsWith('https:')) {shell.openExternal(url)}
     return { action: 'deny' }
   })
+
+  registerIpc(win, app)
   // win.webContents.on('will-navigate', (event, url) => { }) #344
 }
 console.log('📱 Registering app.whenReady() callback...')
@@ -169,22 +174,6 @@ app.whenReady().then(async () => {
     console.error('❌ Failed to start MCP Server:', error)
   }
 })
-
-// app.whenReady().then(async () => {
-//   await createWindow()
-//
-//   // 启动 SSE 服务器
-//   try {
-//     // sseServer = new SSEServer(3001)
-//     // await sseServer.start()
-//     console.log('SSE Server started successfully')
-//     console.log('SSE Server started successfully')
-//     console.log('SSE Server started successfully')
-//     console.log('SSE Server started successfully')
-//   } catch (error) {
-//     console.error('Failed to start SSE Server:', error)
-//   }
-// })
 
 app.on('window-all-closed', async () => {
   win = null
@@ -219,155 +208,3 @@ app.on('activate', () => {
     createWindow()
   }
 })
-
-// New window example arg: new windows url
-ipcMain.handle('open-win', (_, arg) => {
-  const childWindow = new BrowserWindow({
-    webPreferences: {
-      preload,
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-  })
-
-  if (VITE_DEV_SERVER_URL) {
-    childWindow.loadURL(`${VITE_DEV_SERVER_URL}#${arg}`)
-  } else {
-    childWindow.loadFile(indexHtml, { hash: arg })
-  }
-})
-
-// 执行环境管理相关的 IPC 处理程序
-
-// 运行安装脚本
-ipcMain.handle('run-install-script', async (_, scriptName: string) => {
-  try {
-    console.log(`[IPC] Running install script: ${scriptName}`)
-    await runInstallScript(scriptName)
-    console.log(`[IPC] Install script completed: ${scriptName}`)
-    return { success: true }
-  } catch (error) {
-    console.error(`[IPC] Install script failed: ${scriptName}`, error)
-    throw error
-  }
-})
-
-// 检查二进制文件是否存在
-ipcMain.handle('check-binary-exists', async (_, binaryName: string) => {
-  try {
-    const exists = await isBinaryExists(binaryName)
-    console.log(`[IPC] Binary ${binaryName} exists: ${exists}`)
-    return exists
-  } catch (error) {
-    console.error(`[IPC] Error checking binary ${binaryName}:`, error)
-    return false
-  }
-})
-
-// 获取二进制文件版本
-ipcMain.handle('get-binary-version', async (_, binaryName: string) => {
-  try {
-    const binaryPath = await getBinaryPath(binaryName)
-    let version = 'unknown'
-
-    if (binaryName === 'bun') {
-      const output = execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
-      version = output.trim()
-    } else if (binaryName === 'uv') {
-      const output = execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
-      version = output.trim().replace('uv ', '')
-    }
-
-    console.log(`[IPC] Binary ${binaryName} version: ${version}`)
-    return version
-  } catch (error) {
-    console.error(`[IPC] Error getting version for ${binaryName}:`, error)
-    return 'unknown'
-  }
-})
-
-// 设置默认运行时
-ipcMain.handle('set-default-runtime', async (_, runtime: string) => {
-  try {
-    console.log(`[IPC] Setting default runtime to: ${runtime}`)
-    // 这里可以保存到配置文件或环境变量中
-    // 暂时只是记录日志
-    return { success: true, runtime }
-  } catch (error) {
-    console.error('[IPC] Error setting default runtime:', error)
-    throw error
-  }
-})
-
-// 打开 bin 目录
-ipcMain.handle('open-bin-directory', async () => {
-  try {
-    const binDir = await getBinaryPath()
-    console.log(`[IPC] Opening bin directory: ${binDir}`)
-
-    // 确保目录存在
-    if (!fs.existsSync(binDir)) {
-      fs.mkdirSync(binDir, { recursive: true })
-    }
-
-    await shell.openPath(binDir)
-    return { success: true }
-  } catch (error) {
-    console.error('[IPC] Error opening bin directory:', error)
-    throw error
-  }
-})
-
-// --------- Debug helpers for development ---------
-if (process.env.NODE_ENV === 'development') {
-  // 处理来自渲染进程的调试日志
-  ipcMain.on('debug-log', (_event, ...args) => {
-    console.log('[Renderer Debug]:', ...args)
-  })
-
-  // 处理来自渲染进程的错误报告
-  ipcMain.on('debug-error', (_event, message, stack) => {
-    console.error('[Renderer Error]:', message)
-    if (stack) {
-      console.error('Stack trace:', stack)
-    }
-  })
-
-  // 添加一些有用的调试 IPC 处理器
-  ipcMain.handle('get-app-info', () => {
-    return {
-      version: app.getVersion(),
-      name: app.getName(),
-      path: app.getAppPath(),
-      userData: app.getPath('userData'),
-      temp: app.getPath('temp'),
-      desktop: app.getPath('desktop'),
-      documents: app.getPath('documents'),
-      downloads: app.getPath('downloads'),
-    }
-  })
-
-  ipcMain.handle('get-system-info', () => {
-    return {
-      platform: process.platform,
-      arch: process.arch,
-      versions: process.versions,
-      env: process.env.NODE_ENV,
-    }
-  })
-
-  // MCP 服务器相关的 IPC 处理器
-  ipcMain.handle('get-mcp-server-stats', () => {
-    if (bigServer) {
-      return bigServer.getStats()
-    }
-    return null
-  })
-
-  ipcMain.handle('get-mcp-conversations', () => {
-    if (bigServer) {
-      return bigServer.getConversations()
-    }
-    return []
-  })
-}

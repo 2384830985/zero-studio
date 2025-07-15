@@ -2,7 +2,6 @@ import { ChatOpenAI } from '@langchain/openai'
 import { PromptTemplate } from '@langchain/core/prompts'
 import { StringOutputParser } from '@langchain/core/output_parsers'
 import { RunnableSequence } from '@langchain/core/runnables'
-
 export interface PlanStep {
   id: string
   description: string
@@ -75,7 +74,6 @@ export class PlanAndExecuteAgent {
         baseURL: this.config.baseURL,
       },
       modelName: this.config.model,
-      temperature: this.config.temperature,
       maxTokens: this.config.maxTokens,
       streaming: true,
     })
@@ -507,7 +505,6 @@ export class PlanAndExecuteAgent {
         baseURL: this.config.baseURL,
       },
       modelName: this.config.model,
-      temperature: this.config.temperature,
       maxTokens: this.config.maxTokens,
     })
 

@@ -1,10 +1,14 @@
 import fs from 'node:fs'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import ptah from 'path'
+import path from 'path'
+import { fileURLToPath } from 'node:url'
 import electron from 'vite-plugin-electron/simple'
 import renderer from 'vite-plugin-electron-renderer'
 import pkg from './package.json'
+
+// 在 ES 模块中正确获取 __dirname
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
@@ -23,7 +27,7 @@ export default defineConfig(({ command }) => {
   return {
     resolve: {
       alias: {
-        '@': ptah.resolve(__dirname, 'src'),
+        '@': path.resolve(__dirname, 'src'),
       },
     },
     plugins: [
