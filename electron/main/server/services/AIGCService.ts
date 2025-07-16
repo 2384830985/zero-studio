@@ -172,8 +172,6 @@ export class AIGCService {
         }
       }
 
-      console.log('1112312312312')
-
       // 没有工具调用，直接返回响应
       if (stream) {
         const responseStream = await llmWithTools.stream(langchainMessages)

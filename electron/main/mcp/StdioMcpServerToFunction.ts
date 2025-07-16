@@ -384,7 +384,6 @@ export class StdioMcpClientToFunction {
 
   /**
    * 获取所有 MCP 服务器的数据（工具、资源、提示）
-   *
    * @returns {Promise<void>}
    */
   async fetchAllMcpServerData(): Promise<void> {

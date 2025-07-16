@@ -41,52 +41,42 @@
             v-for="conv in conversations"
             :key="conv.id"
             :class="[
-              'p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50',
-              currentConversationId === conv.id ? 'bg-blue-50 border-blue-200' : ''
+              'group relative p-4 border-b border-gray-100 cursor-pointer transition-all duration-200',
+              currentConversationId === conv.id
+                ? 'bg-blue-50 border-blue-200 shadow-sm'
+                : 'hover:bg-gray-50 hover:shadow-sm'
             ]"
             @click="$emit('switchConversation', conv.id)"
           >
-            <div class="flex items-center justify-between">
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-900 truncate">
-                  {{ conv.title || `对话 ${conv.id.slice(-8)}` }}
+            <div class="flex items-start justify-between">
+              <div class="flex-1 min-w-0 pr-2">
+                <p class="text-sm font-medium text-gray-900 truncate mb-1">
+                  {{ conv.title || `对话 ${conv?.id?.slice(-8)}` }}
                 </p>
-                <p class="text-xs text-gray-500 mt-1">
+                <p class="text-xs text-gray-500">
                   {{ conv.messageCount }} 条消息
                 </p>
               </div>
-              <div class="text-xs text-gray-400">
-                {{ formatTime(conv.lastActivity) }}
+
+              <!-- 右侧时间和删除按钮 -->
+              <div class="flex items-center space-x-2 flex-shrink-0">
+                <div class="text-xs text-gray-400">
+                  {{ formatTime(conv.lastActivity) }}
+                </div>
+                <!-- 删除按钮 -->
+                <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <a-button
+                    type="text"
+                    size="small"
+                    danger
+                    class="!p-1 !h-6 !w-6 flex items-center justify-center"
+                    @click.stop="$emit('deleteConversation', conv.id)"
+                  >
+                    <DeleteOutlined class="text-xs" />
+                  </a-button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 话题标签页 -->
-      <div
-        v-else-if="activeTab === 'topic'"
-        class="flex-1 flex flex-col"
-      >
-        <div class="p-4 border-b border-gray-200">
-          <a-button
-            type="primary"
-            block
-            @click="createNewTopic"
-          >
-            <PlusOutlined />
-            新建话题
-          </a-button>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4">
-          <div class="text-center text-gray-500 mt-8">
-            <div class="text-4xl mb-4">
-              💬
-            </div>
-            <p>暂无话题</p>
-            <p class="text-xs mt-2">
-              点击上方按钮创建新话题
-            </p>
           </div>
         </div>
       </div>
@@ -104,8 +94,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import { message as antMessage } from 'ant-design-vue'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import type { MCPConversation } from '../chat.type'
 import ChatSettings from './ChatSettings.vue'
 
@@ -118,13 +107,13 @@ defineProps<Props>()
 
 defineEmits<{
   startNewConversation: []
-  switchConversation: [conversationId: string],
+  switchConversation: [conversationId: string]
+  deleteConversation: [conversationId: string]
 }>()
 
 // 标签页数据
 const tabs = [
-  { key: 'assistant', label: '助手' },
-  { key: 'topic', label: '话题' },
+  { key: 'assistant', label: '聊天' },
   { key: 'settings', label: '设置' },
 ]
 
@@ -138,10 +127,6 @@ const formatTime = (timestamp: number) => {
   })
 }
 
-// 创建新话题
-const createNewTopic = () => {
-  antMessage.info('新建话题功能开发中...')
-}
 </script>
 
 <style scoped>

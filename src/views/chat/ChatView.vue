@@ -61,6 +61,7 @@
         :current-conversation-id="currentConversationId"
         @start-new-conversation="startNewConversation"
         @switch-conversation="switchConversation"
+        @delete-conversation="deleteConversation"
       />
 
       <!-- 聊天区域 -->
@@ -229,13 +230,13 @@ const chatStore = useChatStore()
 const selectedMCPServers = computed(() => chatStore.selectedMCPServers)
 const usePlanModeName = computed(() => chatStore.usePlanModeName)
 const selectedModel = computed(() => chatStore.selectedModel)
+const currentConversationId = computed(() => chatStore.currentConversationId)
 // 响应式数据
 const messages = computed(() => chatStore.messages)
 
 const streamingMessage = ref<MCPMessage | null>(null)
 const inputMessage = ref('')
 const isSending = ref(false)
-const currentConversationId = ref<string>('')
 const conversations = computed(() => chatStore.sortedConversations)
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
@@ -360,10 +361,6 @@ const sendMessage = async () => {
     // 请求成功后清空输入框
     inputMessage.value = ''
 
-    if (response.conversationId && response.conversationId !== currentConversationId.value) {
-      currentConversationId.value = response.conversationId
-    }
-
   } catch (error) {
     console.error('[MCP Chat] Failed to send message:', error)
     antMessage.error('发送消息失败')
@@ -383,7 +380,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
 // 开始新对话
 const startNewConversation = () => {
   chatStore.createNewConversation()
-  currentConversationId.value = chatStore.currentConversationId
   streamingMessage.value = null
   connectToMCPServer()
 }
@@ -395,9 +391,21 @@ const switchConversation = (conversationId: string) => {
   }
 
   chatStore.switchToConversation(conversationId)
-  currentConversationId.value = conversationId
   streamingMessage.value = null
   connectToMCPServer()
+}
+
+const deleteConversation = async (conversationId: string) => {
+  try {
+    if (!conversationId) {
+      return
+    }
+    chatStore.deleteConversation(conversationId)
+    console.log('[MCP Chat] Conversation deleted')
+  } catch (error) {
+    console.error('[MCP Chat] Failed to delete conversation:', error)
+    antMessage.error('删除对话失败')
+  }
 }
 
 // 清空当前对话
@@ -434,7 +442,6 @@ const statsInterval: NodeJS.Timeout | null = null
 onMounted(() => {
   // 初始化store，确保有默认对话
   chatStore.initializeStore()
-  currentConversationId.value = chatStore.currentConversationId
 
   connectToMCPServer()
   loadServerStats()

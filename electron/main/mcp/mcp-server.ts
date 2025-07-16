@@ -22,16 +22,14 @@ export class McpServer {
   }
 
   callSettingTool () {
-    console.log('callSettingTool 1')
     if (!this.mcpClient) {return}
-    console.log('callSettingTool 2')
     const mcpClient = this.mcpClient
-    console.log('callSettingTool 3')
     if (this.mcpClient.allMcpServer?.tools) {
-      console.log('callSettingTool 4', this.mcpClient.allMcpServer.tools)
       for (const mcpTool of this.mcpClient.allMcpServer.tools) {
+        console.log('mcpTool,', mcpTool)
         const dynamicTool = new DynamicTool({
           name: mcpTool.name,
+          schema: mcpTool.inputSchema,
           description: mcpTool.description || `MCP tool: ${mcpTool.name}`,
           func: async (input: string) => {
             try {
@@ -55,6 +53,7 @@ export class McpServer {
             }
           },
         })
+        dynamicTool.schema
         console.log('callSettingTool 5')
         this.langchainTools.push(dynamicTool)
       }
