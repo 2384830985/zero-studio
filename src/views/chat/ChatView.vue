@@ -73,44 +73,13 @@
 
     <!-- 聊天内容区域 -->
     <div class="flex-1 flex overflow-hidden">
-      <!-- 对话列表 -->
-      <div class="w-80 bg-white border-r border-gray-200 flex flex-col">
-        <div class="p-4 border-b border-gray-200">
-          <a-button
-            type="primary"
-            block
-            @click="startNewConversation"
-          >
-            <PlusOutlined />
-            新建对话
-          </a-button>
-        </div>
-        <div class="flex-1 overflow-y-auto">
-          <div
-            v-for="conv in conversations"
-            :key="conv.id"
-            :class="[
-              'p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50',
-              currentConversationId === conv.id ? 'bg-blue-50 border-blue-200' : ''
-            ]"
-            @click="switchConversation(conv.id)"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-900 truncate">
-                  对话 {{ conv.id.slice(-8) }}
-                </p>
-                <p class="text-xs text-gray-500 mt-1">
-                  {{ conv.messageCount }} 条消息
-                </p>
-              </div>
-              <div class="text-xs text-gray-400">
-                {{ formatTime(conv.lastActivity) }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- 左侧标签页区域 -->
+      <ChatSidebar
+        :conversations="conversations"
+        :current-conversation-id="currentConversationId"
+        @start-new-conversation="startNewConversation"
+        @switch-conversation="switchConversation"
+      />
 
       <!-- 聊天区域 -->
       <div class="flex-1 flex flex-col">
@@ -240,7 +209,6 @@
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message as antMessage } from 'ant-design-vue'
 import {
-  PlusOutlined,
   RobotOutlined,
   LoadingOutlined,
   PaperClipOutlined,
@@ -256,6 +224,7 @@ import {PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
 import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
 import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
+import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
 
 const chatStore = useChatStore()
 
