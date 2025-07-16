@@ -1,6 +1,5 @@
 import { Server } from 'http'
 import { MCPServerConfig, ServerStats } from './types'
-import { ConversationService } from './services/ConversationService'
 import { MCPServerService } from './services/MCPServerService'
 import { AIGCService } from './services/AIGCService'
 import { PlanService } from './services/PlanService'
@@ -17,8 +16,6 @@ export class BigServer {
   private port: number
   private config: MCPServerConfig
 
-  // 服务实例
-  private conversationService!: ConversationService
   private mcpServerService!: MCPServerService
   private aigcService!: AIGCService
   private planService!: PlanService
@@ -53,10 +50,9 @@ export class BigServer {
    * 初始化所有服务
    */
   private initializeServices(win: BrowserWindow) {
-    this.conversationService = new ConversationService()
     this.mcpServerService = new MCPServerService()
     this.aigcService = new AIGCService()
-    this.planService = new PlanService(this.conversationService, win)
+    this.planService = new PlanService(win)
   }
 
   /**
@@ -64,7 +60,6 @@ export class BigServer {
    */
   private initializeRoutes(win: BrowserWindow) {
     this.chatRoutes = new ChatRoutes(
-      this.conversationService,
       this.aigcService,
       win,
     )
@@ -378,22 +373,9 @@ export class BigServer {
    */
   public getStats(): ServerStats {
     return {
-      totalConversations: this.conversationService.getConversationCount(),
       totalMessages: this.conversationService.getTotalMessageCount(),
       port: this.port,
       config: this.config,
     }
-  }
-
-  /**
-   * 获取所有对话
-   */
-  public getConversations() {
-    return this.conversationService.getAllConversationSummaries().map(summary => ({
-      id: summary.id,
-      messages: this.conversationService.getConversation(summary.id),
-      messageCount: summary.messageCount,
-      lastActivity: summary.lastMessage?.timestamp || 0,
-    }))
   }
 }

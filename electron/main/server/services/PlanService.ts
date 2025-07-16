@@ -1,6 +1,5 @@
 import { PlanAndExecuteAgent, ExecutionPlan, PlanStep } from '../../plan-and-execute'
 import { MCPMessage } from '../types'
-import { ConversationService } from './ConversationService'
 import { generateId } from '../utils/helpers'
 import {BrowserWindow} from 'electron'
 
@@ -11,11 +10,9 @@ import {BrowserWindow} from 'electron'
 export class PlanService {
   private planAgent: PlanAndExecuteAgent | null = null
   private executionPlans: Map<string, ExecutionPlan> = new Map()
-  private conversationService: ConversationService
   private win: BrowserWindow
 
-  constructor(conversationService: ConversationService, win: BrowserWindow) {
-    this.conversationService = conversationService
+  constructor(win: BrowserWindow) {
     this.win = win
   }
 
@@ -186,9 +183,6 @@ export class PlanService {
         },
       }
 
-      // 保存到对话历史
-      this.conversationService.addMessage(conversationId, finalMessage)
-
       // 广播最终消息
       this.win.webContents.send('message', {
         conversationId,
@@ -207,9 +201,6 @@ export class PlanService {
         timestamp: Date.now(),
         metadata: { ...metadata, planId: plan.id, error: true },
       }
-
-      // 保存到对话历史
-      this.conversationService.addMessage(conversationId, errorMessage)
 
       // 广播错误消息
       this.win.webContents.send('message', {

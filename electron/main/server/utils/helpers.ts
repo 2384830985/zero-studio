@@ -2,7 +2,7 @@
  * 生成唯一ID
  */
 export function generateId(): string {
-  return `mcp_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 9)}`
+  return `big_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 9)}`
 }
 
 /**

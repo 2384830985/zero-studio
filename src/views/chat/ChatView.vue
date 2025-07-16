@@ -7,17 +7,6 @@
           <h1 class="text-xl font-semibold text-gray-900">
             聊天
           </h1>
-          <div class="flex items-center space-x-2">
-            <div
-              :class="[
-                'w-2 h-2 rounded-full',
-                connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'
-              ]"
-            />
-            <span class="text-sm text-gray-600">
-              {{ connectionStatus === 'connected' ? '已连接' : '未连接' }}
-            </span>
-          </div>
         </div>
         <div class="flex items-center space-x-2">
           <!-- 选择模块 -->
@@ -34,13 +23,6 @@
             @click="showStats = !showStats"
           >
             统计信息
-          </a-button>
-          <a-button
-            size="small"
-            :disabled="!isConnected"
-            @click="reconnect"
-          >
-            重连
           </a-button>
         </div>
       </div>
@@ -120,8 +102,15 @@
               ]"
             >
               <div
-                class="text-sm leading-relaxed whitespace-pre-wrap"
+                class="text-sm leading-relaxed whitespace-pre-wrap mb-2"
                 v-html="formatMessage(message.content)"
+              />
+              <!-- MCP 工具调用显示 -->
+              <MCPToolDisplay
+                v-if="message.metadata?.toolCalls || message.metadata?.toolResults"
+                :tool-calls="message.metadata?.toolCalls"
+                :tool-results="message.metadata?.toolResults"
+                class="mb-3"
               />
               <div
                 :class="[
@@ -147,8 +136,15 @@
           >
             <div class="max-w-[70%] bg-white text-gray-800 shadow-sm border border-gray-200 rounded-2xl px-4 py-3">
               <div
-                class="text-sm leading-relaxed whitespace-pre-wrap"
+                class="text-sm leading-relaxed whitespace-pre-wrap mb-2"
                 v-html="formatMessage(streamingMessage.content)"
+              />
+              <!-- MCP 工具调用显示 -->
+              <MCPToolDisplay
+                v-if="streamingMessage.metadata?.toolCalls || streamingMessage.metadata?.toolResults"
+                :tool-calls="streamingMessage.metadata?.toolCalls"
+                :tool-results="streamingMessage.metadata?.toolResults"
+                class="mb-3"
               />
               <div class="text-xs mt-2 text-gray-500 flex items-center">
                 <LoadingOutlined class="mr-1" />
@@ -219,12 +215,13 @@ import {
 import { getEnabledMCPServers } from '../../utils/mcpManager'
 import ExecutionEnvironment from '../../components/ExecutionEnvironment.vue'
 import { USE_PLAN_MODE, useChatStore  } from '@/store'
-import type { MCPMessage, MCPConversation, MCPServerStats } from './chat.type'
+import type { MCPMessage, MCPServerStats } from './chat.type'
 import {PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
 import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
 import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
 import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
+import MCPToolDisplay from '@/views/chat/components/MCPToolDisplay.vue'
 
 const chatStore = useChatStore()
 
@@ -238,9 +235,8 @@ const messages = computed(() => chatStore.messages)
 const streamingMessage = ref<MCPMessage | null>(null)
 const inputMessage = ref('')
 const isSending = ref(false)
-const connectionStatus = ref<'connected' | 'disconnected' | 'connecting'>('disconnected')
 const currentConversationId = ref<string>('')
-const conversations = ref<MCPConversation[]>([])
+const conversations = computed(() => chatStore.sortedConversations)
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
 
@@ -300,19 +296,13 @@ const connectToMCPServer = async () => {
     // 监听主进程的回复
     window.ipcRenderer.on('message', (_event, message) => {
       if (message.message) {
-        const existingIndex = messages.value.findIndex(m => m.id === message.message.id)
-        if (existingIndex >= 0) {
-          chatStore.spliceMessages(message.message)
-        } else {
-          chatStore.pushMessages(message.message)
-        }
+        chatStore.spliceMessages(message.message)
         streamingMessage.value = null
         scrollToBottom()
       }
     })
   } catch (error) {
     console.error('[MCP Chat] Failed to connect:', error)
-    connectionStatus.value = 'disconnected'
     antMessage.error('无法连接到 MCP 服务器')
   }
 }
@@ -392,11 +382,10 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 // 开始新对话
 const startNewConversation = () => {
-  currentConversationId.value = ''
-  chatStore.clearMessages()
+  chatStore.createNewConversation()
+  currentConversationId.value = chatStore.currentConversationId
   streamingMessage.value = null
   connectToMCPServer()
-  loadConversations()
 }
 
 // 切换对话
@@ -405,8 +394,8 @@ const switchConversation = (conversationId: string) => {
     return
   }
 
+  chatStore.switchToConversation(conversationId)
   currentConversationId.value = conversationId
-  chatStore.clearMessages()
   streamingMessage.value = null
   connectToMCPServer()
 }
@@ -418,19 +407,12 @@ const clearCurrentConversation = async () => {
   }
 
   try {
+    chatStore.clearCurrentConversation()
     console.log('[MCP Chat] Conversation cleared')
-    loadConversations()
   } catch (error) {
     console.error('[MCP Chat] Failed to clear conversation:', error)
     antMessage.error('清空对话失败')
   }
-}
-
-// 重新连接
-const reconnect = () => {
-  connectToMCPServer()
-  loadServerStats()
-  loadConversations()
 }
 
 // 加载服务器统计信息
@@ -445,25 +427,17 @@ const loadServerStats = async () => {
   }
 }
 
-// 加载对话列表
-const loadConversations = async () => {
-  try {
-    if (window.electronAPI && (window.electronAPI as any).invoke) {
-      const convs = await (window.electronAPI as any).invoke('get-mcp-conversations')
-      conversations.value = convs.sort((a: any, b: any) => b.lastActivity - a.lastActivity)
-    }
-  } catch (error) {
-    console.error('[MCP Chat] Failed to load conversations:', error)
-  }
-}
 
 // 定期更新统计信息
 const statsInterval: NodeJS.Timeout | null = null
 
 onMounted(() => {
+  // 初始化store，确保有默认对话
+  chatStore.initializeStore()
+  currentConversationId.value = chatStore.currentConversationId
+
   connectToMCPServer()
   loadServerStats()
-  loadConversations()
 
   // 每5秒更新一次统计信息
   // statsInterval = setInterval(() => {

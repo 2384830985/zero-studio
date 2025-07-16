@@ -16,6 +16,9 @@ export interface MCPMessage {
       failedSteps: number
       status: string
     }
+    // MCP 工具调用相关信息
+    toolCalls?: MCPToolCall[]
+    toolResults?: MCPToolResult[]
   }
 }
 
@@ -79,4 +82,23 @@ export interface ServerStats {
   totalMessages: number
   port: number
   config: MCPServerConfig
+}
+
+// MCP 工具调用信息
+export interface MCPToolCall {
+  id: string
+  name: string
+  arguments: Record<string, any>
+  serverId?: string
+  serverName?: string
+}
+
+// MCP 工具调用结果
+export interface MCPToolResult {
+  toolCallId: string
+  toolName: string
+  success: boolean
+  result?: any
+  error?: string
+  executionTime?: number
 }

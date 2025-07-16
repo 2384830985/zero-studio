@@ -49,7 +49,7 @@
             <div class="flex items-center justify-between">
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-gray-900 truncate">
-                  对话 {{ conv.id.slice(-8) }}
+                  {{ conv.title || `对话 ${conv.id.slice(-8)}` }}
                 </p>
                 <p class="text-xs text-gray-500 mt-1">
                   {{ conv.messageCount }} 条消息
