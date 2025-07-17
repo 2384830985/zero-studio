@@ -1,35 +1,38 @@
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 mb-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-1">
         缩放设置
       </h2>
+      <p class="text-sm text-gray-600 mb-4">
+        调整应用界面的缩放比例
+      </p>
 
-      <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">
           缩放
         </h3>
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-3">
           <button
-            class="w-8 h-8 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-50"
+            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-50"
             @click="decreaseZoom"
           >
-            <MinusOutlined class="h-4 w-4" />
+            <MinusOutlined class="h-3 w-3" />
           </button>
           <div class="flex items-center space-x-2">
-            <span class="text-lg font-medium">{{ zoomLevel }}%</span>
+            <span class="text-sm font-medium">{{ zoomLevel }}%</span>
           </div>
           <button
-            class="w-8 h-8 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-50"
+            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-50"
             @click="increaseZoom"
           >
-            <PlusOutlined class="h-4 w-4" />
+            <PlusOutlined class="h-3 w-3" />
           </button>
           <button
-            class="ml-4 w-8 h-8 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-50"
+            class="ml-3 w-7 h-7 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-50"
             @click="resetZoom"
           >
-            <ReloadOutlined class="h-4 w-4" />
+            <ReloadOutlined class="h-3 w-3" />
           </button>
         </div>
       </div>

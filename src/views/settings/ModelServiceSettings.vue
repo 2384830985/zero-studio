@@ -1,17 +1,19 @@
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 mb-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-1">
         模型服务
       </h2>
+      <p class="text-sm text-gray-600 mb-4">
+        管理 AI 模型服务提供商配置
+      </p>
 
       <!-- 搜索框 -->
-      <div class="mb-6">
+      <div class="mb-4">
         <a-input
           v-model:value="searchQuery"
           placeholder="搜索模型平台..."
           class="max-w-md"
-          size="large"
         >
           <template #prefix>
             <SearchOutlined class="text-gray-400" />
@@ -20,38 +22,39 @@
       </div>
 
       <!-- 模型服务列表 -->
-      <div class="space-y-4">
+      <div class="space-y-3">
         <div
           v-for="service in filteredModelServices"
           :key="service.id"
-          class="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
+          class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-sm transition-shadow"
         >
           <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-3">
               <div
-                class="w-12 h-12 rounded-lg flex items-center justify-center text-white text-xl font-bold"
+                class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
                 :style="{ backgroundColor: service.color }"
               >
                 {{ service.name.charAt(0) }}
               </div>
               <div>
-                <h3 class="text-lg font-semibold text-gray-900">
+                <h3 class="text-sm font-semibold text-gray-900">
                   {{ service.name }}
                 </h3>
-                <p class="text-sm text-gray-500">
+                <p class="text-xs text-gray-500">
                   {{ service.description }}
                 </p>
               </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2">
               <a-tag
                 :color="service.enabled ? 'green' : 'default'"
-                class="px-3 py-1"
+                size="small"
               >
                 {{ service.enabled ? 'ON' : 'OFF' }}
               </a-tag>
               <a-switch
                 v-model:checked="service.enabled"
+                size="small"
                 @change="toggleService(service)"
               />
             </div>
@@ -60,38 +63,40 @@
           <!-- 展开的配置区域 -->
           <div
             v-if="service.enabled && expandedService === service.id"
-            class="mt-6 pt-6 border-t border-gray-200"
+            class="mt-4 pt-4 border-t border-gray-200"
           >
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <!-- API 密钥 -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
+                <label class="block text-xs font-medium text-gray-700 mb-1">
                   API 密钥
                 </label>
                 <a-input-password
                   v-model:value="service.apiKey"
                   placeholder="输入API密钥"
+                  size="small"
                   class="w-full"
                 />
               </div>
 
               <!-- API 地址 -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
+                <label class="block text-xs font-medium text-gray-700 mb-1">
                   API 地址
                 </label>
                 <a-input
                   v-model:value="service.apiUrl"
                   placeholder="输入API地址"
+                  size="small"
                   class="w-full"
                 />
               </div>
             </div>
 
             <!-- 可用模型 -->
-            <div class="mt-6">
-              <div class="flex items-center justify-between mb-4">
-                <label class="block text-sm font-medium text-gray-700">
+            <div class="mt-4">
+              <div class="flex items-center justify-between mb-3">
+                <label class="block text-xs font-medium text-gray-700">
                   可用模型
                 </label>
                 <a-button
@@ -106,24 +111,24 @@
                 </a-button>
               </div>
 
-              <div class="space-y-3">
+              <div class="space-y-2">
                 <div
                   v-for="(model, index) in service.models"
                   :key="index"
-                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
                 >
-                  <div class="flex items-center space-x-3">
+                  <div class="flex items-center space-x-2">
                     <div
-                      class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                      class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
                       :style="{ backgroundColor: model.color || '#6b7280' }"
                     >
                       {{ model.name.charAt(0) }}
                     </div>
                     <div>
-                      <div class="font-medium text-gray-900">
+                      <div class="text-sm font-medium text-gray-900">
                         {{ model.name }}
                       </div>
-                      <div class="text-sm text-gray-500">
+                      <div class="text-xs text-gray-500">
                         {{ model.description }}
                       </div>
                     </div>
@@ -131,6 +136,7 @@
                   <div class="flex items-center space-x-2">
                     <a-tag
                       :color="model.enabled ? 'green' : 'default'"
+                      size="small"
                       class="cursor-pointer"
                       @click="toggleModel(service, model)"
                     >
@@ -152,12 +158,16 @@
             </div>
 
             <!-- 操作按钮 -->
-            <div class="mt-6 flex justify-end space-x-3">
-              <a-button @click="testConnection(service)">
+            <div class="mt-4 flex justify-end space-x-2">
+              <a-button
+                size="small"
+                @click="testConnection(service)"
+              >
                 检测连接
               </a-button>
               <a-button
                 type="primary"
+                size="small"
                 @click="saveServiceConfig(service)"
               >
                 保存配置
@@ -168,10 +178,11 @@
           <!-- 展开/收起按钮 -->
           <div
             v-if="service.enabled"
-            class="mt-4 text-center"
+            class="mt-3 text-center"
           >
             <a-button
               type="text"
+              size="small"
               @click="toggleExpand(service.id)"
             >
               {{ expandedService === service.id ? '收起' : '展开配置' }}
@@ -185,10 +196,9 @@
       </div>
 
       <!-- 添加新服务按钮 -->
-      <div class="mt-8 text-center space-y-4">
+      <div class="mt-6 text-center">
         <a-button
           type="dashed"
-          size="large"
           class="w-full max-w-md"
           @click="showAddServiceModal = true"
         >

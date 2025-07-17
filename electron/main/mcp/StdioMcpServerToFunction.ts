@@ -351,6 +351,7 @@ export class StdioMcpClientToFunction {
 
     // 如果尚未加载所有 MCP 服务器信息，先加载
     if (!this.allMcpServer) {
+      console.log('如果尚未加载所有 MCP 服务器信息，先加载')
       await this.fetchAllMcpServerData()
     }
 
@@ -365,15 +366,9 @@ export class StdioMcpClientToFunction {
     }
     console.log(toolIndex)
 
-    // 确保参数是有效的，特别是检查 path 参数
-    if (toolArgs.name === 'list_directory' && (!toolArgs.args || !toolArgs.args.path)) {
-      console.warn('[AIGC Service] Missing required path parameter for list_directory')
-      // 可以设置默认值或返回错误信息
-      toolArgs.args = { path: '.' } // 设置默认值为当前目录
-    }
-
     try {
       console.log('toolArgs', toolArgs)
+      console.log('this.clients[toolIndex]', await this.clients[toolIndex].listTools())
       // 调用工具
       const result = await this.clients[toolIndex].callTool({
         name: toolName,
@@ -414,17 +409,19 @@ export class StdioMcpClientToFunction {
         })
 
         // 连接到 MCP 服务器
-        await Promise.race([
+        const data = await Promise.race([
           this.clients[i].connect(this.transports[i]),
           connectTimeout,
         ])
+
+        console.log('data promise', JSON.stringify(data))
 
         console.log(`[MCP] Successfully connected to server: ${serverName}`)
 
         // 获取工具、资源和提示信息
         let tools: Tool[] = []
-        let resources: Resource[] = []
-        let prompts: Prompt[] = []
+        const resources: Resource[] = []
+        const prompts: Prompt[] = []
 
         try {
           console.log(`[MCP] Fetching tools from server: ${serverName}`)
@@ -435,21 +432,21 @@ export class StdioMcpClientToFunction {
           console.error(`[MCP] Error fetching tools from server ${serverName}:`, e)
         }
 
-        try {
-          console.log(`[MCP] Fetching resources from server: ${serverName}`)
-          resources = (await this.clients[i].listResources())?.resources as Resource[]
-          console.log(`[MCP] Found ${resources?.length || 0} resources from server: ${serverName}`)
-        } catch (e) {
-          console.error(`[MCP] Error fetching resources from server ${serverName}:`, e)
-        }
+        // try {
+        //   console.log(`[MCP] Fetching resources from server: ${serverName}`)
+        //   resources = (await this.clients[i].listResources())?.resources as Resource[]
+        //   console.log(`[MCP] Found ${resources?.length || 0} resources from server: ${serverName}`)
+        // } catch (e) {
+        //   console.error(`[MCP] Error fetching resources from server ${serverName}:`, e)
+        // }
 
-        try {
-          console.log(`[MCP] Fetching prompts from server: ${serverName}`)
-          prompts = (await this.clients[i].listPrompts())?.prompts as Prompt[]
-          console.log(`[MCP] Found ${prompts?.length || 0} prompts from server: ${serverName}`)
-        } catch (e) {
-          console.error(`[MCP] Error fetching prompts from server ${serverName}:`, e)
-        }
+        // try {
+        //   console.log(`[MCP] Fetching prompts from server: ${serverName}`)
+        //   prompts = (await this.clients[i].listPrompts())?.prompts as Prompt[]
+        //   console.log(`[MCP] Found ${prompts?.length || 0} prompts from server: ${serverName}`)
+        // } catch (e) {
+        //   console.error(`[MCP] Error fetching prompts from server ${serverName}:`, e)
+        // }
 
         this.tools.push(...tools)
         this.resources.push(...resources)

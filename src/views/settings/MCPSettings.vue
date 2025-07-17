@@ -1,21 +1,20 @@
 <template>
   <div class="space-y-6">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 mb-2">
+      <h2 class="text-xl font-bold text-gray-900 mb-1">
         MCP 服务器
       </h2>
-      <p class="text-gray-600 mb-6">
+      <p class="text-sm text-gray-600 mb-4">
         管理 Model Context Protocol (MCP) 服务器配置
       </p>
 
       <!-- 操作按钮 -->
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center justify-between mb-4">
         <div class="flex items-center space-x-3">
           <a-input
             v-model:value="searchQuery"
             placeholder="搜索 MCP"
             class="w-64"
-            size="large"
           >
             <template #prefix>
               <SearchOutlined class="text-gray-400" />
@@ -42,60 +41,125 @@
       </div>
 
       <!-- MCP 服务器列表 -->
-      <div class="space-y-4">
+      <div class="space-y-3">
         <div
           v-for="server in filteredServers"
           :key="server.id"
-          class="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+          class="bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
         >
-          <div class="p-6">
+          <div class="p-4">
             <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-4">
-                <div class="flex items-center space-x-3">
-                  <div
-                    class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold"
-                    :style="{ backgroundColor: server.color || '#6b7280' }"
-                  >
-                    {{ server.name.charAt(0).toUpperCase() }}
-                  </div>
-                  <div>
-                    <div class="flex items-center space-x-2">
-                      <h3 class="text-lg font-semibold text-gray-900">
-                        {{ server.name }}
-                      </h3>
-                      <div
-                        v-if="mcpServerStatuses.get(server.id)?.connected"
-                        class="w-2 h-2 bg-green-500 rounded-full"
-                      />
-                    </div>
-                    <p class="text-sm text-gray-500">
-                      {{ server.description }}
-                    </p>
-                  </div>
-                </div>                 <div class="flex items-center space-x-2">
-                  <a-tag
-                    size="small"
-                    :color="getTypeColor(server.type)"
-                  >
-                    {{ getTypeLabel(server.type) }}
-                  </a-tag>
-                  <span class="text-xs text-gray-400">
-                    {{ server.tools.length }} 工具
-                  </span>
-                  <span
-                    v-if="server.env && Object.keys(server.env).length > 0"
-                    class="text-xs text-green-600"
-                  >
-                    {{ Object.keys(server.env).length }} 环境变量
-                  </span>
+              <div class="flex items-center space-x-3 flex-1 min-w-0">
+                <div
+                  class="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                  :style="{ backgroundColor: server.color || '#6b7280' }"
+                >
+                  {{ server.name.charAt(0).toUpperCase() }}
                 </div>
-              </div>               <div class="flex items-center space-x-3">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center space-x-2 mb-1">
+                    <h3 class="text-sm font-medium text-gray-900 truncate">
+                      {{ server.name }}
+                    </h3>
+                    <div
+                      class="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"
+                    />
+                    <a-tag
+                      size="small"
+                      :color="getTypeColor(server.type)"
+                      class="flex-shrink-0"
+                    >
+                      {{ getTypeLabel(server.type) }}
+                    </a-tag>
+                  </div>
+                  <p class="text-xs text-gray-500 truncate mb-2">
+                    {{ server.description }}
+                  </p>
+
+                  <!-- 工具和环境变量信息 -->
+                  <div class="flex items-center space-x-3 text-xs text-gray-400">
+                    <span class="flex items-center space-x-1">
+                      <ToolOutlined class="w-3 h-3" />
+                      <span>{{ server.tools.length }} 工具</span>
+                    </span>
+                    <span
+                      v-if="server.env && Object.keys(server.env).length > 0"
+                      class="flex items-center space-x-1 text-green-600"
+                    >
+                      <SettingOutlined class="w-3 h-3" />
+                      <span>{{ Object.keys(server.env).length }} 环境变量</span>
+                    </span>
+                  </div>
+
+                  <!-- 当前工具列表 -->
+                  <div
+                    v-if="server.tools && server.tools.length > 0"
+                    class="mt-2"
+                  >
+                    <div class="flex flex-wrap gap-1">
+                      <a-tag
+                        v-for="tool in server.tools.slice(0, 3)"
+                        :key="tool.name"
+                        size="small"
+                        color="blue"
+                        class="text-xs"
+                        :title="tool.description"
+                      >
+                        {{ tool.name }}
+                      </a-tag>
+                      <a-tag
+                        v-if="server.tools.length > 3"
+                        size="small"
+                        color="default"
+                        class="text-xs"
+                        :title="`还有 ${server.tools.length - 3} 个工具: ${server.tools.slice(3).map(t => t.name).join(', ')}`"
+                      >
+                        +{{ server.tools.length - 3 }} 更多
+                      </a-tag>
+                    </div>
+                  </div>
+
+                  <!-- 无工具时的提示 -->
+                  <div
+                    v-else-if="server.enabled"
+                    class="mt-2"
+                  >
+                    <div class="flex items-center space-x-1 text-xs text-gray-400">
+                      <span>暂无工具信息</span>
+                      <a-button
+                        size="small"
+                        type="link"
+                        class="p-0 h-auto text-xs"
+                        @click="refreshServerTools(server.id)"
+                      >
+                        点击获取
+                      </a-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center space-x-2 flex-shrink-0">
                 <a-switch
                   :checked="server.enabled"
+                  size="small"
                   @change="() => toggleServer(server.id)"
                 />
                 <a-button
+                  v-if="server.enabled"
                   size="small"
+                  type="text"
+                  title="刷新工具"
+                  @click="refreshServerTools(server.id)"
+                >
+                  <template #icon>
+                    <SyncOutlined />
+                  </template>
+                </a-button>
+                <a-button
+                  size="small"
+                  type="text"
+                  title="编辑"
                   @click="editServer(server)"
                 >
                   <template #icon>
@@ -111,19 +175,20 @@
       <!-- 空状态 -->
       <div
         v-if="filteredServers.length === 0"
-        class="text-center py-12"
+        class="text-center py-8"
       >
-        <div class="text-gray-400 mb-4">
-          <ApiOutlined class="text-4xl" />
+        <div class="text-gray-400 mb-3">
+          <ApiOutlined class="text-3xl" />
         </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">
+        <h3 class="text-base font-medium text-gray-900 mb-2">
           暂无 MCP 服务器
         </h3>
-        <p class="text-gray-500 mb-4">
+        <p class="text-sm text-gray-500 mb-4">
           添加 MCP 服务器以启用工具调用功能
         </p>
         <a-button
           type="primary"
+          size="small"
           @click="showAddModal = true"
         >
           添加第一个服务器
@@ -236,17 +301,15 @@ import {
   SyncOutlined,
   EditOutlined,
   ApiOutlined,
+  ToolOutlined,
+  SettingOutlined,
 } from '@ant-design/icons-vue'
-import {
-  mcpServers,
-  mcpServerStatuses,
-  refreshCounter,
-  addMCPServer,
-  updateMCPServer,
-  toggleMCPServer,
-  testMCPServerConnection,
-} from '../../utils/mcpManager'
+import {useMCPServiceStore} from '@/store'
 import type { MCPServerConfig } from '../../types/mcp'
+
+const mcpServiceStore = useMCPServiceStore()
+
+const mcpServers = computed(() => mcpServiceStore.mcpServers)
 
 // 响应式数据
 const searchQuery = ref('')
@@ -266,8 +329,6 @@ const serverForm = reactive({
 
 // 计算属性
 const filteredServers = computed(() => {
-  // 使用refreshCounter来强制响应式更新
-  refreshCounter.value
 
   if (!searchQuery.value) {
     return mcpServers.value
@@ -280,8 +341,19 @@ const filteredServers = computed(() => {
 })
 
 // 方法
-const toggleServer = (id: string) => {
-  toggleMCPServer(id)
+const toggleServer = async (id: string) => {
+  const wasEnabled = mcpServers.value.find(s => s.id === id)?.enabled
+  mcpServiceStore.toggleMCPServer(id)
+
+  // 如果服务器被启用，自动获取工具信息
+  const isNowEnabled = mcpServers.value.find(s => s.id === id)?.enabled
+  if (!wasEnabled && isNowEnabled) {
+    try {
+      await mcpServiceStore.fetchMCPServerTools(id)
+    } catch (error) {
+      console.error('获取工具信息失败:', error)
+    }
+  }
 }
 
 const editServer = (server: MCPServerConfig) => {
@@ -295,7 +367,7 @@ const editServer = (server: MCPServerConfig) => {
   serverForm.url = server.url || ''
   showAddModal.value = true
 }
-
+console.log('111111', mcpServiceStore.mcpServers)
 const handleSaveServer = () => {
   if (!serverForm.name.trim()) {
     message.error('请输入服务器名称')
@@ -316,7 +388,7 @@ const handleSaveServer = () => {
     .split('\n')
     .map(arg => arg.trim())
     .filter(arg => arg)
-
+  console.log('22222', mcpServiceStore.mcpServers)
   // 解析环境变量
   const env: Record<string, string> = {}
   if (serverForm.envText.trim()) {
@@ -331,7 +403,7 @@ const handleSaveServer = () => {
         }
       })
   }
-
+  console.log('333333', mcpServiceStore.mcpServers)
   const config = {
     name: serverForm.name,
     description: serverForm.description,
@@ -347,11 +419,14 @@ const handleSaveServer = () => {
     color: '#' + Math.floor(Math.random() * 16777215).toString(16),
   }
 
+  console.log('config', config)
+
   if (editingServer.value) {
-    updateMCPServer(editingServer.value.id, config)
+    mcpServiceStore.updateMCPServer(editingServer.value.id, config)
     message.success('服务器配置已更新')
   } else {
-    addMCPServer(config)
+    console.log('config222', mcpServiceStore.mcpServers)
+    mcpServiceStore.addMCPServers(config)
   }
 
   handleCancelEdit()
@@ -371,11 +446,22 @@ const handleCancelEdit = () => {
   serverForm.url = ''
 }
 
+const refreshServerTools = async (id: string) => {
+  try {
+    message.info('正在刷新工具信息...')
+    const tools = await mcpServiceStore.fetchMCPServerTools(id)
+    message.success(`已刷新工具信息，发现 ${tools.length} 个工具`)
+  } catch (error) {
+    console.error('刷新工具信息失败:', error)
+    message.error('刷新工具信息失败')
+  }
+}
+
 const syncServers = async () => {
   message.info('正在同步服务器状态...')
 
   for (const server of mcpServers.value.filter(s => s.enabled)) {
-    await testMCPServerConnection(server.id)
+    await mcpServiceStore.testMCPServerConnection(server.id)
   }
 
   message.success('服务器状态同步完成')

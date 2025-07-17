@@ -8,7 +8,7 @@ export class McpServer {
 
   static enabledMCPServersObj: { [key: string]: EnabledMCPServer } = {}
 
-  private static mcpClient?: StdioMcpClientToFunction
+  static mcpClient?: StdioMcpClientToFunction
 
   static async getInitMcpClient(enabledMCPServers: EnabledMCPServer[]) {
     const isShowServer = enabledMCPServers.some(server => !this.enabledMCPServersObj[server.id])
@@ -30,7 +30,6 @@ export class McpServer {
     const mcpClient = this.mcpClient
     if (this.mcpClient.allMcpServer?.tools) {
       for (const mcpTool of this.mcpClient.allMcpServer.tools) {
-        console.log('mcpTool,', mcpTool)
         const dynamicTool = new DynamicTool({
           name: mcpTool.name,
           description: mcpTool.description || `MCP tool: ${mcpTool.name}`,
@@ -55,7 +54,6 @@ export class McpServer {
             }
           },
         })
-        console.log('callSettingTool 5')
         this.langchainTools.push(dynamicTool)
       }
     }

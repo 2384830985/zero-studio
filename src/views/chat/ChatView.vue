@@ -213,9 +213,8 @@ import {
   GlobalOutlined,
   ArrowUpOutlined,
 } from '@ant-design/icons-vue'
-import { getEnabledMCPServers } from '../../utils/mcpManager'
 import ExecutionEnvironment from '../../components/ExecutionEnvironment.vue'
-import { USE_PLAN_MODE, useChatStore  } from '@/store'
+import { USE_PLAN_MODE, useChatStore, useMCPServiceStore  } from '@/store'
 import type { MCPMessage, MCPServerStats } from './chat.type'
 import {PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
 import ChatModel from '@/views/chat/components/chatModel.vue'
@@ -225,6 +224,7 @@ import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
 import MCPToolDisplay from '@/views/chat/components/MCPToolDisplay.vue'
 
 const chatStore = useChatStore()
+const mcpServiceStore = useMCPServiceStore()
 
 // MCP 相关数据
 const selectedMCPServers = computed(() => chatStore.selectedMCPServers)
@@ -250,9 +250,7 @@ const isConnected = computed(() => true)
 const usePlanMode = computed(() => chatStore.usePlanMode)
 
 // 获取启用的MCP服务器
-const enabledMCPServers = computed(() => {
-  return getEnabledMCPServers()
-})
+const enabledMCPServers = computed(() => mcpServiceStore.enabledMCPServers)
 
 // 格式化时间
 const formatTime = (timestamp: number) => {

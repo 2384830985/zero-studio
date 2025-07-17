@@ -1,4 +1,3 @@
-import {log} from 'node:console'
 import {ChatOpenAI} from '@langchain/openai'
 import {AIMessage, HumanMessage, ToolMessage} from '@langchain/core/messages'
 // import {DynamicTool} from '@langchain/core/tools'
@@ -26,11 +25,9 @@ export class AIGCService {
   ): Promise<any> {
     try {
       console.log('[AIGC Service] Using langchain for tool calling')
-      const mcpServer = new McpServer(enabledMCPServers)
-      await mcpServer.initMcpClient()
 
       // 检查是否有可用的工具
-      if (!mcpServer.langchainTools || mcpServer.langchainTools.length === 0) {
+      if (!McpServer.langchainTools || McpServer.langchainTools.length === 0) {
         console.log('[AIGC Service] No MCP tools available, falling back to direct API call')
         return this.callAIGC(messages, stream, model, [], metadata)
       }
@@ -52,10 +49,10 @@ export class AIGCService {
       })
 
       // 绑定工具到 LLM
-      const llmWithTools = llm.bindTools(mcpServer.langchainTools)
+      const llmWithTools = llm.bindTools(McpServer.langchainTools)
 
-      log('[AIGC Service] 绑定工具到 LLM', llmWithTools)
-      log('[AIGC Service] 创建代理', llmWithTools)
+      // log('[AIGC Service] 绑定工具到 LLM', llmWithTools)
+      // log('[AIGC Service] 创建代理', llmWithTools)
 
       // 转换消息格式
       const langchainMessages = messages.map((msg: any) => {
@@ -99,7 +96,8 @@ export class AIGCService {
           }
 
           try {
-            const toolResult = await mcpServer?.mcpClient?.callTool(toolCall.name, toolCall.args)
+            console.log('toolCall.name', toolCall.name, toolCall.args)
+            const toolResult = await McpServer.mcpClient?.callTool(toolCall.name, toolCall.args)
             const executionTime = Date.now() - startTime
 
             // 记录工具执行结果
@@ -150,8 +148,8 @@ export class AIGCService {
 
         // 如果有工具调用，需要再次调用 LLM 获取最终回复
         const finalMessages = [...langchainMessages, response, ...toolMessages]
-        console.log('finalMessages', finalMessages)
-        console.log('stream', stream)
+        // console.log('finalMessages', finalMessages)
+        // console.log('stream', stream)
 
         // 如果是流式响应，返回流式结果
         if (stream) {

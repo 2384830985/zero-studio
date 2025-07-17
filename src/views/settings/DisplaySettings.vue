@@ -1,26 +1,29 @@
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 mb-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-1">
         显示设置
       </h2>
+      <p class="text-sm text-gray-600 mb-4">
+        自定义应用外观和主题配置
+      </p>
 
       <!-- 主题设置 -->
-      <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 mb-4">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">
           主题
         </h3>
-        <div class="flex space-x-4">
+        <div class="flex space-x-3">
           <button
             v-for="theme in themes"
             :key="theme.key"
-            class="flex items-center px-4 py-2 rounded-lg border transition-colors"
+            class="flex items-center px-3 py-1.5 rounded-lg border transition-colors text-sm"
             :class="selectedTheme === theme.key ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'"
             @click="selectedTheme = theme.key"
           >
             <component
               :is="theme.icon"
-              class="mr-2 h-4 w-4"
+              class="mr-1.5 h-3 w-3"
             />
             {{ theme.label }}
           </button>
@@ -28,37 +31,40 @@
       </div>
 
       <!-- 主题颜色 -->
-      <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 mb-4">
+        <h3 class="text-sm font-semibold text-gray-900 mb-3">
           主题颜色
         </h3>
-        <div class="flex flex-wrap gap-3">
+        <div class="flex flex-wrap gap-2">
           <div
             v-for="color in themeColors"
             :key="color.value"
-            class="w-8 h-8 rounded-full cursor-pointer border-2 transition-transform hover:scale-110"
+            class="w-6 h-6 rounded-full cursor-pointer border-2 transition-transform hover:scale-110"
             :class="selectedColor === color.value ? 'border-gray-400 scale-110' : 'border-gray-200'"
             :style="{ backgroundColor: color.value }"
             @click="selectedColor = color.value"
           />
-          <div class="flex items-center ml-4">
-            <span class="text-sm font-mono text-gray-600">{{ selectedColor }}</span>
+          <div class="flex items-center ml-3">
+            <span class="text-xs font-mono text-gray-600">{{ selectedColor }}</span>
           </div>
         </div>
       </div>
 
       <!-- 透明窗口 -->
-      <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-semibold text-gray-900">
+            <h3 class="text-sm font-semibold text-gray-900">
               透明窗口
             </h3>
-            <p class="text-sm text-gray-500 mt-1">
+            <p class="text-xs text-gray-500 mt-0.5">
               启用窗口透明效果
             </p>
           </div>
-          <a-switch v-model:checked="transparentWindow" />
+          <a-switch
+            v-model:checked="transparentWindow"
+            size="small"
+          />
         </div>
       </div>
     </div>
