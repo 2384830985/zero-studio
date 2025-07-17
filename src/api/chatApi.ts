@@ -4,3 +4,6 @@ export const PostChatSendApi = async (obj: object) => {
 export const PostPlanCreateApi = async (obj: object) => {
   return window?.ipcRenderer?.invoke('plan-create', JSON.stringify(obj))
 }
+export const ConnectMCPApi = async (obj: object) => {
+  return window?.ipcRenderer?.invoke('connect-mcp', JSON.stringify(obj))
+}

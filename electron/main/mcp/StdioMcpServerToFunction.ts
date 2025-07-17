@@ -94,6 +94,8 @@ export class StdioMcpClientToFunction {
   /** 工具列表 */
   private tools: Tool[] = []
 
+  private clientAndTools: { [key:string]: Tool[] } = {}
+
   private funcTools: OpenAiFunctionI[] = []
 
   /** 资源列表 */
@@ -119,6 +121,10 @@ export class StdioMcpClientToFunction {
   private constructor(enabledMCPServers: EnabledMCPServer[]) {
     this.config = this.createConfigFromEnabledServers(enabledMCPServers)
     this.currentEnabledServers = enabledMCPServers
+  }
+
+  get clientTools () {
+    return this.clientAndTools
   }
 
   /**
@@ -423,6 +429,7 @@ export class StdioMcpClientToFunction {
         try {
           console.log(`[MCP] Fetching tools from server: ${serverName}`)
           tools = (await this.clients[i].listTools()).tools as Tool[]
+          this.clientAndTools[serverName] = tools
           console.log(`[MCP] Found ${tools.length} tools from server: ${serverName}`)
         } catch (e) {
           console.error(`[MCP] Error fetching tools from server ${serverName}:`, e)

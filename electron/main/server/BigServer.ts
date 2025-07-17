@@ -1,5 +1,5 @@
 import { Server } from 'http'
-import { MCPServerConfig, ServerStats } from './types'
+import { MCPServerConfig } from './types'
 import { AIGCService } from './services/AIGCService'
 import { PlanService } from './services/PlanService'
 import { ChatRoutes } from './routes/chatRoutes'
@@ -40,8 +40,6 @@ export class BigServer {
 
     this.setupRoutes()
 
-    // 初始化MCP服务器
-    this.initializeEnabledMCPServers()
   }
 
   /**
@@ -167,9 +165,8 @@ export class BigServer {
   /**
    * 获取服务器统计信息
    */
-  public getStats(): ServerStats {
+  public getStats() {
     return {
-      totalMessages: this.conversationService.getTotalMessageCount(),
       port: this.port,
       config: this.config,
     }

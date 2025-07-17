@@ -4,6 +4,7 @@ import {ApiOutlined} from '@ant-design/icons-vue'
 import {ref,computed} from 'vue'
 import {useChatStore} from '@/store'
 import {getEnabledMCPServers} from '@/utils/mcpManager.ts'
+import {ConnectMCPApi} from '@/api/chatApi.ts'
 const chatStore = useChatStore()
 
 const showMCPSelector = ref(false)
@@ -16,11 +17,15 @@ const enabledMCPServers = computed(() => {
 })
 
 // 切换MCP服务器选择
-const toggleMCPServer = (serverId: string) => {
+const toggleMCPServer = async (serverId: string) => {
   const index = chatStore.toggleMCPServer(serverId)
   const serverName = enabledMCPServers.value.find(s => s.id === serverId)?.name || serverId
   const action = index > -1 ? '取消选择' : '选择'
-  console.log(`[MCP Chat] ${action} MCP 服务器:`, serverName)
+  console.log(`[MCP Chat] ${action} MCP 服务器:enabledMCPServers`, enabledMCPServers, serverName)
+  if (selectedMCPServers.value.length) {
+    const data = await ConnectMCPApi({ enabledMCPServers: selectedMCPServers.value.map(id => enabledMCPServers.value.find(servers => servers.id === id))})
+    console.log('data', data)
+  }
 }
 
 </script>
