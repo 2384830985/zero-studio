@@ -70,13 +70,11 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
       let version = 'unknown'
 
       if (binaryName === 'bun') {
-        // nosonar
-        const output = cp.execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
-        version = output.trim()
+        const result = cp.spawnSync(binaryPath, ['--version'], { encoding: 'utf8' })
+        version = result.stdout?.trim()
       } else if (binaryName === 'uv') {
-        // nosonar
-        const output = cp.execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
-        version = output.trim().replace('uv ', '')
+        const result = cp.spawnSync(binaryPath, ['--version'], { encoding: 'utf8' })
+        version = result.stdout?.trim().replace('uv ', '')
       }
 
       console.log(`[IPC] Binary ${binaryName} version: ${version}`)
