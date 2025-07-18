@@ -372,14 +372,64 @@ onMounted(() => {
 }
 
 .env-button {
-  color: #666;
+  color: #9ca3af;
   border: none;
   box-shadow: none;
+  transition: color 0.2s ease;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .env-button:hover {
-  color: #1890ff;
-  background-color: #f0f0f0;
+  color: #3b82f6;
+  background-color: transparent;
+}
+
+.env-button:focus {
+  color: #3b82f6;
+  background-color: transparent;
+}
+
+/* 修复按钮内图标对齐问题 */
+.env-button :deep(.ant-btn-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+}
+
+.env-button :deep(.anticon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* 修复下拉箭头的对齐 */
+.env-button :deep(.anticon-down) {
+  font-size: 10px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+/* 确保按钮内容垂直居中 */
+.env-button :deep(.ant-btn-content) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .env-menu {

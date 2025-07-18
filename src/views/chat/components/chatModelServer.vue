@@ -90,5 +90,26 @@ const selectModel = (service: ModelService, model: ModelInfo) => {
 </template>
 
 <style scoped>
+/* 确保按钮高度统一 */
+:deep(.ant-btn-sm) {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
 
+:deep(.ant-btn-sm .ant-btn-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+:deep(.ant-btn-sm .anticon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
 </style>

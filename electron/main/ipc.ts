@@ -4,6 +4,7 @@ import {execSync} from 'child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { performWebSearch } from './utils/webSearch'
 // import { BigServer } from './server'
 
 // 在 ES 模块中正确获取 __dirname
@@ -112,6 +113,26 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
       return { success: true }
     } catch (error) {
       console.error('[IPC] Error opening bin directory:', error)
+      throw error
+    }
+  })
+
+  // 网络搜索相关的 IPC 处理器
+  ipcMain.handle('web-search', async (_, searchParams: { query: string; engine: string }) => {
+    try {
+      console.log(`[IPC] Performing web search: ${searchParams.query} using ${searchParams.engine}`)
+
+      const searchResult = await performWebSearch(searchParams.query, searchParams.engine)
+      console.log(`[IPC] Web search completed for: ${searchParams.query}`)
+
+      return {
+        success: true,
+        query: searchParams.query,
+        engine: searchParams.engine,
+        results: searchResult,
+      }
+    } catch (error) {
+      console.error('[IPC] Web search failed:', error)
       throw error
     }
   })

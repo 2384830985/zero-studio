@@ -75,6 +75,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.send('debug-error', error.message, error.stack)
     },
   },
+
+  // 网络搜索 API
+  webSearch: {
+    search: (params: { query: string; engine: string }) =>
+      ipcRenderer.invoke('web-search', params),
+  },
 })
 
 // --------- Preload scripts loading ---------

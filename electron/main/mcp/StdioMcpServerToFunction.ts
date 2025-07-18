@@ -409,12 +409,10 @@ export class StdioMcpClientToFunction {
         })
 
         // 连接到 MCP 服务器
-        const data = await Promise.race([
+        await Promise.race([
           this.clients[i].connect(this.transports[i]),
           connectTimeout,
         ])
-
-        console.log('data promise', JSON.stringify(data))
 
         console.log(`[MCP] Successfully connected to server: ${serverName}`)
 

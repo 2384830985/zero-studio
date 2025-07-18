@@ -1,29 +1,40 @@
 <template>
   <div class="h-full flex flex-col bg-gray-50">
     <!-- 顶部状态栏 -->
-    <div class="bg-white border-b border-gray-200 px-6 py-4">
+    <div class="bg-white border-b border-gray-200 px-6 py-2">
       <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-4">
-          <h1 class="text-xl font-semibold text-gray-900">
+        <div class="flex items-center">
+          <h1 class="text-base font-medium text-gray-900 absolute top-3">
             聊天
           </h1>
         </div>
-        <div class="flex items-center space-x-2">
+        <div
+          class="flex items-center space-x-1"
+          style="height: 32px;"
+        >
           <!-- 选择模块 -->
-          <ChatModel />
+          <div class="flex items-center">
+            <ChatModel />
+          </div>
 
           <!-- 模型选择器 -->
-          <ChatModelServer />
+          <div class="flex items-center">
+            <ChatModelServer />
+          </div>
 
           <!-- MCP 选择器 -->
-          <ChatMcp />
+          <div class="flex items-center">
+            <ChatMcp />
+          </div>
 
-          <a-button
-            size="small"
-            @click="showStats = !showStats"
-          >
-            统计信息
-          </a-button>
+          <div class="flex items-center">
+            <a-button
+              size="small"
+              @click="showStats = !showStats"
+            >
+              统计信息
+            </a-button>
+          </div>
         </div>
       </div>
 
@@ -69,7 +80,7 @@
         <!-- 消息列表 -->
         <div
           ref="messagesContainer"
-          class="flex-1 overflow-y-auto p-6 space-y-4"
+          class="flex-1 overflow-y-auto px-4 py-4 space-y-3"
         >
           <!-- 欢迎消息 -->
           <div
@@ -156,7 +167,7 @@
         </div>
 
         <!-- 输入区域 -->
-        <div class="border-t border-gray-200 bg-white p-4">
+        <div class="border-t border-gray-200 bg-white px-4 py-3">
           <div class="bg-gray-50 rounded-xl p-3">
             <a-textarea
               v-model:value="inputMessage"
@@ -167,12 +178,32 @@
               @keydown="handleKeyDown"
             />
             <div class="flex justify-between items-center mt-2">
-              <div class="flex gap-3 items-center">
-                <PaperClipOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
-                <LinkOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
-                <GlobalOutlined class="text-gray-400 cursor-pointer text-base hover:text-blue-500" />
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-blue-500 transition-colors duration-200"
+                    title="附件"
+                  >
+                    <PaperClipOutlined style="font-size: 16px;" />
+                  </div>
+                  <div
+                    class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-blue-500 transition-colors duration-200"
+                    title="链接"
+                  >
+                    <LinkOutlined style="font-size: 16px;" />
+                  </div>
+                  <div
+                    class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-blue-500 transition-colors duration-200"
+                    title="网络搜索"
+                    @click="showWebSearchModal = true"
+                  >
+                    <GlobalOutlined style="font-size: 16px;" />
+                  </div>
+                </div>
                 <!-- 执行环境组件 -->
-                <ExecutionEnvironment />
+                <div class="flex items-center">
+                  <ExecutionEnvironment />
+                </div>
               </div>
               <div class="flex items-center gap-2">
                 <a-button
@@ -199,6 +230,12 @@
         </div>
       </div>
     </div>
+
+    <!-- 网络搜索模态框 -->
+    <WebSearchModal
+      v-model="showWebSearchModal"
+      @search-result="handleSearchResult"
+    />
   </div>
 </template>
 
@@ -216,12 +253,14 @@ import {
 import ExecutionEnvironment from '../../components/ExecutionEnvironment.vue'
 import { USE_PLAN_MODE, useChatStore, useMCPServiceStore  } from '@/store'
 import type { MCPMessage, MCPServerStats } from './chat.type'
+import type { SearchResult } from '@/types/webSearch'
 import {PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
 import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
 import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
 import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
 import MCPToolDisplay from '@/views/chat/components/MCPToolDisplay.vue'
+import WebSearchModal from '@/views/chat/components/WebSearchModal.vue'
 
 const chatStore = useChatStore()
 const mcpServiceStore = useMCPServiceStore()
@@ -240,6 +279,7 @@ const isSending = ref(false)
 const conversations = computed(() => chatStore.sortedConversations)
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
+const showWebSearchModal = ref(false)
 
 // DOM 引用
 const messagesContainer = ref<HTMLElement>()
@@ -421,6 +461,13 @@ const clearCurrentConversation = async () => {
   }
 }
 
+// 处理网络搜索结果
+const handleSearchResult = (result: SearchResult) => {
+  // 将搜索结果插入到输入框中
+  const searchInfo = `[网络搜索结果]\n标题: ${result.title}\n链接: ${result.url}\n摘要: ${result.snippet}\n\n`
+  inputMessage.value = searchInfo + inputMessage.value
+}
+
 // 加载服务器统计信息
 const loadServerStats = async () => {
   try {
@@ -478,5 +525,27 @@ onUnmounted(() => {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* 统一顶部按钮样式 */
+:deep(.ant-btn-sm) {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+:deep(.ant-btn-sm .ant-btn-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.ant-btn-sm .anticon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
 }
 </style>
