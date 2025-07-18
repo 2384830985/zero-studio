@@ -227,7 +227,7 @@ export const useMCPServiceStore = defineStore('MCPService', {
               const serverIndex = this.mcpServers.findIndex(s => s.id === key)
               if (serverIndex !== -1) {
                 this.mcpServers[serverIndex].tools = this.mcpServers[serverIndex]?.tools || []
-                const isTools = this.mcpServers[serverIndex].tools.some(tool => tool.name === tool.name)
+                const isTools = this.mcpServers[serverIndex].tools.some(item => item.name === tool.name)
                 if (!isTools) {
                   this.mcpServers[serverIndex].tools.push({
                     name: tool.name,
