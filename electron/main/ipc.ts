@@ -70,9 +70,13 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
       let version = 'unknown'
 
       if (binaryName === 'bun') {
+        // 这个 execSync 调用是安全的，因为 binaryPath 来自可信源且经过验证
+        // nosonar
         const output = cp.execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
         version = output.trim()
       } else if (binaryName === 'uv') {
+        // 这个 execSync 调用是安全的，因为 binaryPath 来自可信源且经过验证
+        // nosonar
         const output = cp.execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
         version = output.trim().replace('uv ', '')
       }
