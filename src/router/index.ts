@@ -3,13 +3,16 @@ import MainLayout from '../layouts/MainLayout.vue'
 import ChatView from '../views/chat/ChatView.vue'
 import TranslateView from '../views/translate/TranslateView.vue'
 import SettingsView from '../views/settings/SettingsView.vue'
+import DifyView from '../views/dify/DifyView.vue'
+
+// 设置页面的子组件
 import ModelServiceSettings from '../views/settings/ModelServiceSettings.vue'
 import MCPSettings from '../views/settings/MCPSettings.vue'
+import ToolSettings from '../views/settings/ToolSettings.vue'
 import DisplaySettings from '../views/settings/DisplaySettings.vue'
 import ZoomSettings from '../views/settings/ZoomSettings.vue'
 import TopicSettings from '../views/settings/TopicSettings.vue'
 import AssistantSettings from '../views/settings/AssistantSettings.vue'
-import DifyView from '../views/dify/DifyView.vue'
 
 const routes = [
   {
@@ -37,18 +40,24 @@ const routes = [
       },
       {
         path: 'settings',
+        name: 'Settings',
         component: SettingsView,
         redirect: '/settings/model',
         children: [
           {
             path: 'model',
-            name: 'ModelServiceSettings',
+            name: 'ModelSettings',
             component: ModelServiceSettings,
           },
           {
             path: 'mcp',
             name: 'MCPSettings',
             component: MCPSettings,
+          },
+          {
+            path: 'tool',
+            name: 'ToolSettings',
+            component: ToolSettings,
           },
           {
             path: 'display',
@@ -69,6 +78,11 @@ const routes = [
             path: 'assistant',
             name: 'AssistantSettings',
             component: AssistantSettings,
+          },
+          {
+            path: 'about',
+            name: 'AboutSettings',
+            component: () => import('../views/settings/AboutSettings.vue'),
           },
         ],
       },
