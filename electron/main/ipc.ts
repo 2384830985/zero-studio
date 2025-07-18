@@ -1,6 +1,6 @@
 import {BrowserWindow, ipcMain, shell} from 'electron'
 import {getBinaryPath, isBinaryExists, runInstallScript} from './utils/process'
-import {execSync} from 'child_process'
+import cp from 'child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -70,10 +70,10 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
       let version = 'unknown'
 
       if (binaryName === 'bun') {
-        const output = execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
+        const output = cp.execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
         version = output.trim()
       } else if (binaryName === 'uv') {
-        const output = execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
+        const output = cp.execSync(`'${binaryPath}' --version`, { encoding: 'utf8' })
         version = output.trim().replace('uv ', '')
       }
 
