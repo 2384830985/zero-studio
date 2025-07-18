@@ -266,13 +266,8 @@ export class StdioMcpClientToFunction {
           let cmd = config.command
           // 如果配置的是 npx，检查是否有 bun 可用，否则使用 npx
           if (config.command === 'npx') {
-            try {
-              cmd = await getBinaryPath('bun')
-              console.log(`[MCP] Using bun instead of npx: ${cmd}`)
-            } catch (error) {
-              console.log(`[MCP] bun not found, using npx: ${config.command}`)
-              cmd = config.command
-            }
+            cmd = await getBinaryPath('bun')
+            console.log(`[MCP] Using bun instead of npx: ${cmd}`)
           }
           console.log('cmd', cmd)
           console.info(`[MCP] Starting server with command: ${cmd} ${config.args ? config.args.join(' ') : ''}`)

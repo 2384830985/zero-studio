@@ -81,7 +81,7 @@
         <iframe
           v-else
           :src="difyUrl"
-          name="dify"
+          title="dify"
           class="w-full h-full border-0"
           @load="handleIframeLoad"
         />
