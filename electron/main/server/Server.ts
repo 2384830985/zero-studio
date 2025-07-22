@@ -1,4 +1,3 @@
-import { Server } from 'http'
 import { MCPServerConfig } from './types'
 import { AIGCService } from './services/AIGCService'
 import { PlanService } from './services/PlanService'
@@ -10,8 +9,8 @@ import {BrowserWindow, ipcMain} from 'electron'
  * 主服务器类
  * 整合所有服务和路由，提供统一的服务器管理
  */
-export class BigServer {
-  private server: Server | null = null
+export class Server {
+  private server: any = null
   private port: number
   private config: MCPServerConfig
 

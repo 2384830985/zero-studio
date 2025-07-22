@@ -250,11 +250,11 @@ import {
   GlobalOutlined,
   ArrowUpOutlined,
 } from '@ant-design/icons-vue'
-import ExecutionEnvironment from '../../components/ExecutionEnvironment.vue'
+import ExecutionEnvironment from '../../components/common/ExecutionEnvironment.vue'
 import { USE_PLAN_MODE, useChatStore, useMCPServiceStore  } from '@/store'
 import type { MCPMessage, MCPServerStats } from './chat.type'
 import type { SearchResult } from '@/types/webSearch'
-import {PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
+import {ConnectReActApi, PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
 import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
 import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
@@ -352,31 +352,22 @@ const sendMessage = async () => {
     return
   }
 
+  if (!selectedModel.value) {
+    return antMessage.error('请选择一个请求的模型')
+  }
+
   const content = inputMessage.value.trim()
   isSending.value = true
 
   try {
-    // 构建请求元数据，包含选中的模型信息
-    const metadata: any = {
-      stream: true,
-    }
-
-    if (selectedModel.value) {
-      metadata.model = selectedModel.value.model.name
-      metadata.service = {
-        id: selectedModel.value.service.id,
-        name: selectedModel.value.service.name,
-        apiUrl: selectedModel.value.service.apiUrl,
-        apiKey: selectedModel.value.service.apiKey,
-      }
-    } else {
-      metadata.model = 'mcp-default'
-    }
+    console.log('messages', messages.value)
 
     // 根据模式选择不同的 API 端点
     const apiEndpoint = usePlanMode.value === USE_PLAN_MODE.QUEST_ANSWERS
       ? PostChatSendApi
-      : PostPlanCreateApi
+      : usePlanMode.value === USE_PLAN_MODE.RE_ACT
+        ? ConnectReActApi
+        : PostPlanCreateApi
 
     const selectedMCPServersObj: { [key: string]: boolean } = {}
     selectedMCPServers.value.map(item => {
@@ -384,9 +375,19 @@ const sendMessage = async () => {
     })
 
     const response = await apiEndpoint({
+      oldMessage: messages.value,
       content,
       conversationId: currentConversationId.value,
-      metadata,
+      metadata: {
+        stream: true,
+        model: selectedModel.value.model.name,
+        service: {
+          id: selectedModel.value.service.id,
+          name: selectedModel.value.service.name,
+          apiUrl: selectedModel.value.service.apiUrl,
+          apiKey: selectedModel.value.service.apiKey,
+        },
+      },
       enabledMCPServers: enabledMCPServers.value.map(item => {
         return {...item}
       }).filter(item => selectedMCPServersObj[item.id]),

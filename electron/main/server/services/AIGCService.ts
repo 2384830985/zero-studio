@@ -1,10 +1,9 @@
-import {ChatOpenAI} from '@langchain/openai'
 import {AIMessage, HumanMessage, ToolMessage} from '@langchain/core/messages'
 // import {DynamicTool} from '@langchain/core/tools'
 // import {EnabledMCPServer, StdioMcpClientToFunction} from '../../mcp/StdioMcpServerToFunction'
-import {EnabledMCPServer} from '../../mcp/StdioMcpServerToFunction'
 import {McpServer} from '../../mcp/mcp-server'
 import {CommunicationRole} from '../../mcp'
+import {getModel} from '../llm'
 
 /**
  * AIGC服务类
@@ -17,43 +16,19 @@ export class AIGCService {
   async handleToolCallingWithLangchain(
     messages: any[],
     stream: boolean,
-    model: string,
-    enabledMCPServers: EnabledMCPServer[],
     metadata: any,
-    onToolCall?: (toolCall: any) => void,
-    onToolResult?: (toolResult: any) => void,
   ): Promise<any> {
     try {
-      console.log('[AIGC Service] Using langchain for tool calling')
-
-      // 检查是否有可用的工具
-      if (!McpServer.langchainTools || McpServer.langchainTools.length === 0) {
-        console.log('[AIGC Service] No MCP tools available, falling back to direct API call')
-        return this.callAIGC(messages, stream, model, [], metadata)
-      }
-
-      // 创建 ChatOpenAI 实例，使用AIGC 配置
+      // 创建 实例，使用AIGC 配置
       console.log('[AIGC Service] LangChain configuration:')
       console.log('  - baseURL:', metadata.service.apiUrl)
-      console.log('  - model:', model)
-
-      const llm = new ChatOpenAI({
-        openAIApiKey: metadata.service.apiKey,
-        configuration: {
-          baseURL: metadata.service.apiUrl,
-        },
-        model, // 使用映射后的模型名称
-        temperature: 0.7,
-        maxTokens: 2000,
-        streaming: stream,
-      })
+      console.log('  - model:', metadata.model)
+      const llm = getModel(metadata)
 
       // 绑定工具到 LLM
       const llmWithTools = llm.bindTools(McpServer.langchainTools)
-
-      // log('[AIGC Service] 绑定工具到 LLM', llmWithTools)
-      // log('[AIGC Service] 创建代理', llmWithTools)
-
+      // console.log('[AIGC Service] 绑定工具到 LLM', llmWithTools)
+      console.log('[AIGC Service] McpServer.langchainTools.length', McpServer.langchainTools.length)
       // 转换消息格式
       const langchainMessages = messages.map((msg: any) => {
         switch (msg.role) {
@@ -65,11 +40,8 @@ export class AIGCService {
           return new HumanMessage(msg.content)
         }
       })
-
       // 调用 LLM
       const response = await llmWithTools.invoke(langchainMessages)
-
-      console.log('llm', response.content)
 
       // 处理工具调用
       if (response.tool_calls && response.tool_calls.length > 0) {
@@ -90,11 +62,6 @@ export class AIGCService {
           }
           toolCalls.push(mcpToolCall)
 
-          // 实时发送工具调用信息
-          if (onToolCall) {
-            onToolCall(mcpToolCall)
-          }
-
           try {
             console.log('toolCall.name', toolCall.name, toolCall.args)
             const toolResult = await McpServer.mcpClient?.callTool(toolCall.name, toolCall.args)
@@ -109,11 +76,6 @@ export class AIGCService {
               executionTime,
             }
             toolResults.push(mcpToolResult)
-
-            // 实时发送工具结果信息
-            if (onToolResult) {
-              onToolResult(mcpToolResult)
-            }
 
             toolMessages.push(new ToolMessage({
               content: JSON.stringify(toolResult),
@@ -134,45 +96,46 @@ export class AIGCService {
             }
             toolResults.push(mcpToolResult)
 
-            // 实时发送工具错误信息
-            if (onToolResult) {
-              onToolResult(mcpToolResult)
-            }
-
             toolMessages.push(new ToolMessage({
               content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
               tool_call_id: toolCall.id || 'unknown',
             }))
           }
         }
+        const summaryPrompt = `请扮演一个助手，根据对话历史（包括你之前的行为和工具调用结果）来总结并回答用户的问题。请重点注意以下几点：
+- 你之前尝试调用工具来获取信息。
+- 如果工具调用失败，请向用户解释失败原因，并建议正确的做法。
+- 如果工具调用成功，请整合工具返回的信息给出最终回答。
 
+请用清晰、简洁的语言进行总结，并直接给出最终答案。
+`
         // 如果有工具调用，需要再次调用 LLM 获取最终回复
-        const finalMessages = [...langchainMessages, response, ...toolMessages]
+        const finalMessages = [
+          ...langchainMessages,
+          new AIMessage({
+            content: response.content,
+            tool_calls: response.tool_calls,
+          }),
+          ...toolMessages,
+          new HumanMessage(summaryPrompt),
+        ]
         // console.log('finalMessages', finalMessages)
         // console.log('stream', stream)
 
         // 如果是流式响应，返回流式结果
-        if (stream) {
-          const finalStream = await llmWithTools.invoke(finalMessages)
-          return {
-            content: `${response.content}\n${finalStream.content}`,
-            toolCalls,
-            toolResults,
-          }
-        } else {
-          // 转换为标准格式返回，包含工具调用信息
-          const finalResponse = await llmWithTools.invoke(finalMessages)
-          return {
-            content: finalResponse.content,
-            toolCalls,
-            toolResults,
-          }
+        const finalStream = await llm.invoke(finalMessages)
+        console.log('1111111', finalStream)
+        console.log('2222222', finalMessages)
+        return {
+          content: `${response.content}\n${finalStream.content}`,
+          toolCalls,
+          toolResults,
         }
       }
 
       // 没有工具调用，直接返回响应
       if (stream) {
-        const responseStream = await llmWithTools.stream(langchainMessages)
+        const responseStream = await llmWithTools.stream(messages)
         return {
           stream: responseStream,
         }
@@ -184,7 +147,7 @@ export class AIGCService {
     } catch (error) {
       console.error('[AIGC Service] Error in langchain tool calling:', error)
       console.log('[AIGC Service] Falling back to direct API call due to langchain error')
-      return this.callAIGC(messages, stream, model, [], null)
+      return this.callAIGC(messages, stream, [], metadata)
     }
   }
 
@@ -194,20 +157,20 @@ export class AIGCService {
   async callAIGC(
     messages: any[],
     stream = false,
-    model: string,
-    enabledMCPServers: EnabledMCPServer[],
     metadata: any,
   ): Promise<any> {
-    if (!model) {
+    if (!metadata.model) {
       throw new Error('model 不能为空')
     }
     if (!metadata) {
       throw new Error('metadata 不能为空')
     }
     // 如果有工具调用需求，使用 langchain 进行处理
-    if (enabledMCPServers && enabledMCPServers.length > 0) {
+    if (
+      McpServer?.langchainTools?.length > 0
+    ) {
       try {
-        return await this.handleToolCallingWithLangchain(messages, stream, model, enabledMCPServers, metadata)
+        return await this.handleToolCallingWithLangchain(messages, stream, metadata)
       } catch (error) {
         console.error('[AIGC Service] Tool calling failed, falling back to direct API call:', error)
         // 继续执行直接API调用
@@ -215,15 +178,7 @@ export class AIGCService {
     }
 
     try {
-      const stream = new ChatOpenAI({
-        openAIApiKey: metadata.service.apiKey,
-        configuration: {
-          baseURL: metadata.service.apiUrl,
-        },
-        model: model, // 使用映射后的模型名称
-        temperature: 0.7,
-        maxTokens: 2000,
-      }).stream(
+      const stream = getModel(metadata).stream(
         messages,
       )
       return {

@@ -4,7 +4,7 @@ import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import { log } from 'node:console'
-import { BigServer } from './server'
+import { Server } from './server'
 // import { runInstallScript, isBinaryExists, getBinaryPath } from './utils/process'
 // import { execSync } from 'child_process'
 import { registerIpc } from './ipc'
@@ -78,7 +78,7 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
-let bigServer: BigServer | null = null
+let mainServer: Server | null = null
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
@@ -163,12 +163,12 @@ app.whenReady().then(async () => {
 
   // 启动 MCP 服务器
   try {
-    bigServer = new BigServer({
+    mainServer = new Server({
       port: parseInt(process.env.MCP_SERVER_PORT || '3002'),
       enableCors: true,
       streamingEnabled: true,
     }, win as BrowserWindow)
-    await bigServer.start()
+    await mainServer.start()
     console.log('✅ MCP Server started successfully')
   } catch (error) {
     console.error('❌ Failed to start MCP Server:', error)
@@ -179,14 +179,14 @@ app.on('window-all-closed', async () => {
   win = null
 
   // 停止 MCP 服务器
-  if (bigServer) {
+  if (mainServer) {
     try {
-      await bigServer.stop()
+      await mainServer.stop()
       console.log('✅ Server stopped')
     } catch (error) {
       console.error('❌ Error stopping Server:', error)
     }
-    bigServer = null
+    mainServer = null
   }
 
   if (process.platform !== 'darwin') {app.quit()}

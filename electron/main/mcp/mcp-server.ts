@@ -1,10 +1,11 @@
 import {EnabledMCPServer, StdioMcpClientToFunction} from './StdioMcpServerToFunction'
-import {DynamicTool} from '@langchain/core/tools'
+import { DynamicStructuredTool} from '@langchain/core/tools'
+import * as console from 'node:console'
 
 export class McpServer {
 
   // 将 MCP langchain 工具
-  static langchainTools: DynamicTool[] = []
+  static langchainTools: DynamicStructuredTool[] = []
 
   static enabledMCPServersObj: { [key: string]: EnabledMCPServer } = {}
 
@@ -30,15 +31,20 @@ export class McpServer {
     const mcpClient = this.mcpClient
     if (this.mcpClient.allMcpServer?.tools) {
       for (const mcpTool of this.mcpClient.allMcpServer.tools) {
-        const dynamicTool = new DynamicTool({
+        const dynamicTool = new DynamicStructuredTool({
+          schema: mcpTool.inputSchema,
           name: mcpTool.name,
           description: mcpTool.description || `MCP tool: ${mcpTool.name}`,
-          func: async (input: string) => {
+          func: async (input: string | object) => {
             try {
               // 解析输入参数
               let args = {}
               try {
-                args = JSON.parse(input)
+                if (typeof input === 'string') {
+                  args = JSON.parse(input)
+                } else {
+                  args = input
+                }
               } catch {
                 // 如果不是 JSON，根据工具类型智能处理参数
               }

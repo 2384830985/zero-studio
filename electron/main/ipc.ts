@@ -5,7 +5,6 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { performWebSearch } from './utils/webSearch'
-// import { BigServer } from './server'
 
 // 在 ES 模块中正确获取 __dirname
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -174,21 +173,5 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
         env: process.env.NODE_ENV,
       }
     })
-
-    // // MCP 服务器相关的 IPC 处理器
-    // ipcMain.handle('get-mcp-server-stats', () => {
-    //   if (bigServer) {
-    //     return bigServer.getStats()
-    //   }
-    //   return null
-    // })
-    //
-    // ipcMain.handle('get-mcp-conversations', () => {
-    //   if (bigServer) {
-    //     return bigServer.getConversations()
-    //   }
-    //   return []
-    // })
   }
-
 }

@@ -263,14 +263,12 @@ const formatTime = (timestamp: number) => {
 /* 对话列表容器 */
 .conversations-container {
   flex: 1;
-  overflow: hidden;
   padding: 0 16px 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .conversations-list {
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
   padding-right: 4px;
   margin-right: -4px;
 }

@@ -2,9 +2,11 @@ import {BrowserWindow, ipcMain} from 'electron'
 // import { log } from 'node:console'
 import { MCPMessage } from '../types'
 import { AIGCService } from '../services/AIGCService'
+import {AIMessage, HumanMessage} from '@langchain/core/messages'
 import { generateId, generateMockMCPResponseContent } from '../utils/helpers'
 import { EnabledMCPServer } from '../../mcp/StdioMcpServerToFunction'
 import {Communication, CommunicationRole} from '../../mcp'
+import {ReActService} from '../services/ReActService'
 
 export class ChatRoutes {
   private aigcService: AIGCService
@@ -22,15 +24,101 @@ export class ChatRoutes {
   }
 
   private setupRoutes() {
-    // 发送消息到 聊天
+    // 发送消息到聊天
     ipcMain.handle('chat-send', this.handleMCPChatSend.bind(this))
+    // 发送聊天到 ReAct
+    ipcMain.handle('chat-reAct', this.handleMCPChatReactSend.bind(this))
   }
+
+  /**
+   * ReAct
+   * @param _
+   * @param object
+   * @private
+   */
+  private async handleMCPChatReactSend(_, object) {
+    const response = JSON.parse(object)
+    // oldMessage
+    const { content, metadata = {} } = response
+    if (!content) {
+      return {
+        code: 400,
+        body: {
+          error: 'Content is required',
+        },
+      }
+    }
+    const conversationId = generateId()
+    // 创建用户消息
+    const userMessage: MCPMessage = {
+      id: conversationId,
+      role: CommunicationRole.USER,
+      content: content.trim(),
+      timestamp: Date.now(),
+      metadata,
+    }
+
+    // 广播用户消息
+    this.communication.setMessage({
+      conversationId: conversationId,
+      message: userMessage,
+    })
+
+    const reAct = new ReActService(this.win)
+    reAct.initializeReActAgent(metadata)
+
+    const stepCallback = (step) => {
+      console.log(`[${step.type}] ${step.content}`)
+      // 发送完整消息
+      this.communication.setMessage({
+        conversationId: conversationId,
+        message: {
+          id: generateId(),
+          role: CommunicationRole.ASSISTANT,
+          content: step.content,
+          timestamp: Date.now(),
+          metadata: {
+            model: metadata.model,
+            stream: true,
+          },
+          isComplete: true,
+        },
+      })
+    }
+
+    const result = await reAct.reactAgent?.execute(content, stepCallback) as string
+    const assistantMessageId = generateId()
+    console.log('最终结果:', result)
+
+    // 发送完整消息
+    this.communication.setMessage({
+      conversationId: conversationId,
+      message: {
+        id: assistantMessageId,
+        role: CommunicationRole.ASSISTANT,
+        content: result,
+        timestamp: Date.now(),
+        metadata: {
+          model: metadata.model,
+          stream: true,
+        },
+        isComplete: true,
+      },
+    })
+  }
+
+  /**
+   * Chat
+   * @param _
+   * @param object
+   * @private
+   */
 
   private async handleMCPChatSend(_, object) {
     try {
       const response = JSON.parse(object)
-      const { content, conversationId, metadata = {}, enabledMCPServers } = response
-      if (!content || typeof content !== 'string') {
+      const { content, conversationId, metadata = {}, enabledMCPServers, oldMessage } = response
+      if (!content) {
         return {
           code: 400,
           body: {
@@ -56,8 +144,20 @@ export class ChatRoutes {
         message: userMessage,
       })
 
+      // 转换消息格式
+      const langchainMessages = [...oldMessage, userMessage].map((msg: any) => {
+        switch (msg.role) {
+        case CommunicationRole.USER:
+          return new HumanMessage(msg.content)
+        case CommunicationRole.ASSISTANT:
+          return new AIMessage(msg.content)
+        default:
+          return new HumanMessage(msg.content)
+        }
+      })
+
       // 生成 AI 回复
-      this.generateMCPResponse([userMessage], convId, enabledMCPServers, metadata)
+      this.generateMCPResponse(langchainMessages, convId, enabledMCPServers, metadata)
 
       return {
         success: true,
@@ -75,7 +175,7 @@ export class ChatRoutes {
     }
   }
 
-  private async generateMCPResponse(userMessage: MCPMessage[], conversationId: string, enabledMCPServers: EnabledMCPServer[], metadata: any) {
+  private async generateMCPResponse(userMessage: (HumanMessage | AIMessage)[], conversationId: string, enabledMCPServers: EnabledMCPServer[], metadata: any) {
     const assistantMessageId = generateId()
     let toolCalls: any[] = []
     let toolResults: any[] = []
@@ -116,8 +216,6 @@ export class ChatRoutes {
         const response = await this.aigcService.callAIGC(
           userMessage,
           true,
-          metadata.model,
-          enabledMCPServers,
           metadata,
           onToolCall,
           onToolResult,

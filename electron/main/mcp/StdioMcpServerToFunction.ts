@@ -363,7 +363,6 @@ export class StdioMcpClientToFunction {
 
     try {
       console.log('toolArgs', toolArgs)
-      console.log('this.clients[toolIndex]', await this.clients[toolIndex].listTools())
       // 调用工具
       const result = await this.clients[toolIndex].callTool({
         name: toolName,

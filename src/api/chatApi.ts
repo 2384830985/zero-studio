@@ -7,3 +7,6 @@ export const PostPlanCreateApi = async (obj: object) => {
 export const ConnectMCPApi = async (obj: object) => {
   return window?.ipcRenderer?.invoke('connect-mcp', JSON.stringify(obj))
 }
+export const ConnectReActApi = async (obj: object) => {
+  return window?.ipcRenderer?.invoke('chat-reAct', JSON.stringify(obj))
+}
