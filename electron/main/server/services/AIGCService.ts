@@ -2,7 +2,6 @@ import {AIMessage, HumanMessage, ToolMessage} from '@langchain/core/messages'
 // import {DynamicTool} from '@langchain/core/tools'
 // import {EnabledMCPServer, StdioMcpClientToFunction} from '../../mcp/StdioMcpServerToFunction'
 import {McpServer} from '../../mcp/mcp-server'
-import {CommunicationRole} from '../../mcp'
 import {getModel} from '../llm'
 
 /**
@@ -29,19 +28,11 @@ export class AIGCService {
       const llmWithTools = llm.bindTools(McpServer.langchainTools)
       // console.log('[AIGC Service] 绑定工具到 LLM', llmWithTools)
       console.log('[AIGC Service] McpServer.langchainTools.length', McpServer.langchainTools.length)
-      // 转换消息格式
-      const langchainMessages = messages.map((msg: any) => {
-        switch (msg.role) {
-        case CommunicationRole.USER:
-          return new HumanMessage(msg.content)
-        case CommunicationRole.ASSISTANT:
-          return new AIMessage(msg.content)
-        default:
-          return new HumanMessage(msg.content)
-        }
-      })
+      // console.log('langchainMessages', langchainMessages)
+      console.log('messages', messages)
+
       // 调用 LLM
-      const response = await llmWithTools.invoke(langchainMessages)
+      const response = await llmWithTools.invoke(messages)
 
       // 处理工具调用
       if (response.tool_calls && response.tool_calls.length > 0) {
@@ -111,7 +102,7 @@ export class AIGCService {
 `
         // 如果有工具调用，需要再次调用 LLM 获取最终回复
         const finalMessages = [
-          ...langchainMessages,
+          ...messages,
           new AIMessage({
             content: response.content,
             tool_calls: response.tool_calls,

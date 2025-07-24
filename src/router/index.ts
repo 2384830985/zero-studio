@@ -1,9 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
-import ChatView from '../views/chat/ChatView.vue'
-import TranslateView from '../views/translate/TranslateView.vue'
+import ChatView from '../views/chat/index.vue'
+import TranslateView from '../views/translate/index.vue'
 import SettingsView from '../views/settings/SettingsView.vue'
-import DifyView from '../views/dify/DifyView.vue'
+import DifyView from '../views/dify/index.vue'
+import RoleManagement from '../views/roles/index.vue'
 
 // 设置页面的子组件
 import ModelServiceSettings from '../views/settings/ModelServiceSettings.vue'
@@ -27,6 +28,11 @@ const routes = [
         path: 'chat',
         name: 'Chat',
         component: ChatView,
+      },
+      {
+        path: 'roles',
+        name: 'Roles',
+        component: RoleManagement,
       },
       {
         path: 'translate',

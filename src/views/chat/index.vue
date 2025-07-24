@@ -12,6 +12,11 @@
           class="flex items-center space-x-1"
           style="height: 32px;"
         >
+          <!-- 角色选择器 -->
+          <div class="flex items-center">
+            <ChatRoleSelector />
+          </div>
+
           <!-- 选择模块 -->
           <div class="flex items-center">
             <ChatModel />
@@ -100,19 +105,21 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message as antMessage } from 'ant-design-vue'
-import { USE_PLAN_MODE, useChatStore, useMCPServiceStore  } from '@/store'
+import { USE_PLAN_MODE, useChatStore, useMCPServiceStore, useRoleStore } from '@/store'
 import type { MCPMessage, MCPServerStats } from './chat.type'
 import type { SearchResult } from '@/types/webSearch'
 import {ConnectReActApi, PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
 import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
 import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
+import ChatRoleSelector from '@/views/chat/components/ChatRoleSelector.vue'
 import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
 import ChatArea from '@/views/chat/components/ChatArea.vue'
 import WebSearchModal from '@/views/chat/components/WebSearchModal.vue'
 
 const chatStore = useChatStore()
 const mcpServiceStore = useMCPServiceStore()
+const roleStore = useRoleStore()
 
 // MCP 相关数据
 const selectedMCPServers = computed(() => chatStore.selectedMCPServers)
@@ -193,6 +200,25 @@ const handleSendMessage = async (content: string) => {
   try {
     console.log('messages', messages.value)
 
+    // 获取当前选中的角色
+    const selectedRole = roleStore.selectedRole
+
+    // 准备消息列表，如果有角色系统提示词，则添加到消息开头
+    let messagesToSend = [...messages.value]
+    if (selectedRole && selectedRole.systemPrompt) {
+      // 检查是否已经有系统消息，如果没有则添加
+      const hasSystemMessage = messagesToSend.some(msg => msg.role === 'system')
+      if (!hasSystemMessage) {
+        const systemMessage: MCPMessage = {
+          id: `system_${Date.now()}`,
+          role: 'system',
+          content: selectedRole.systemPrompt,
+          timestamp: Date.now(),
+        }
+        messagesToSend = [systemMessage, ...messagesToSend]
+      }
+    }
+
     // 根据模式选择不同的 API 端点
     const apiEndpoint = usePlanMode.value === USE_PLAN_MODE.QUEST_ANSWERS
       ? PostChatSendApi
@@ -206,7 +232,7 @@ const handleSendMessage = async (content: string) => {
     })
 
     const response = await apiEndpoint({
-      oldMessage: messages.value,
+      oldMessage: messagesToSend,
       content,
       conversationId: currentConversationId.value,
       metadata: {

@@ -27,17 +27,27 @@
           <MessageOutlined />
         </div>
         <div
-          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
-          title="收藏"
+          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 relative hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
+          :class="{
+            'bg-blue-50 text-blue-500 scale-110 before:absolute before:left-[-8px] before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-4 before:bg-blue-500 before:rounded': $route.path === '/roles'
+          }"
+          title="AI 角色"
+          @click="$router.push('/roles')"
         >
-          <StarOutlined />
+          <TeamOutlined />
         </div>
-        <div
-          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
-          title="应用"
-        >
-          <AppstoreOutlined />
-        </div>
+        <!--        <div-->
+        <!--          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"-->
+        <!--          title="收藏"-->
+        <!--        >-->
+        <!--          <StarOutlined />-->
+        <!--        </div>-->
+        <!--        <div-->
+        <!--          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"-->
+        <!--          title="应用"-->
+        <!--        >-->
+        <!--          <AppstoreOutlined />-->
+        <!--        </div>-->
         <div
           class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 relative hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
           :class="{
@@ -58,18 +68,18 @@
         >
           <RobotOutlined />
         </div>
-        <div
-          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
-          title="工具"
-        >
-          <AppstoreOutlined />
-        </div>
-        <div
-          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
-          title="退出"
-        >
-          <LogoutOutlined />
-        </div>
+        <!--        <div-->
+        <!--          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"-->
+        <!--          title="工具"-->
+        <!--        >-->
+        <!--          <AppstoreOutlined />-->
+        <!--        </div>-->
+        <!--        <div-->
+        <!--          class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"-->
+        <!--          title="退出"-->
+        <!--        >-->
+        <!--          <LogoutOutlined />-->
+        <!--        </div>-->
         <div
           class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
           title="文件"
@@ -83,9 +93,9 @@
         <div class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110">
           <QuestionCircleOutlined />
         </div>
-        <div class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110">
-          <BulbOutlined />
-        </div>
+        <!--        <div class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 hover:bg-gray-100 hover:text-blue-500 hover:scale-110">-->
+        <!--          <BulbOutlined />-->
+        <!--        </div>-->
         <div
           class="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer text-gray-600 transition-all duration-300 relative hover:bg-gray-100 hover:text-blue-500 hover:scale-110"
           :class="{
@@ -110,14 +120,11 @@
 import {
   UserOutlined,
   MessageOutlined,
-  StarOutlined,
-  AppstoreOutlined,
   TranslationOutlined,
   RobotOutlined,
-  LogoutOutlined,
+  TeamOutlined,
   FolderOutlined,
   QuestionCircleOutlined,
-  BulbOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue'
 </script>

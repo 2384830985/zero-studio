@@ -12,6 +12,7 @@ export enum CommunicationType {
 export enum CommunicationRole{
   ASSISTANT='assistant',
   USER='user',
+  SYSTEM='system',
 }
 
 export interface IMCPToolCall {

@@ -2,7 +2,7 @@ import {BrowserWindow, ipcMain} from 'electron'
 // import { log } from 'node:console'
 import { MCPMessage } from '../types'
 import { AIGCService } from '../services/AIGCService'
-import {AIMessage, HumanMessage} from '@langchain/core/messages'
+import {AIMessage, HumanMessage, SystemMessage} from '@langchain/core/messages'
 import { generateId, generateMockMCPResponseContent } from '../utils/helpers'
 import { EnabledMCPServer } from '../../mcp/StdioMcpServerToFunction'
 import {Communication, CommunicationRole} from '../../mcp'
@@ -149,6 +149,8 @@ export class ChatRoutes {
         switch (msg.role) {
         case CommunicationRole.USER:
           return new HumanMessage(msg.content)
+        case CommunicationRole.SYSTEM:
+          return new SystemMessage(msg.content)
         case CommunicationRole.ASSISTANT:
           return new AIMessage(msg.content)
         default:
