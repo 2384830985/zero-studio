@@ -76,159 +76,17 @@
       />
 
       <!-- 聊天区域 -->
-      <div class="flex-1 flex flex-col">
-        <!-- 消息列表 -->
-        <div
-          ref="messagesContainer"
-          class="flex-1 overflow-y-auto px-4 py-4 space-y-3"
-        >
-          <!-- 欢迎消息 -->
-          <div
-            v-if="messages.length === 0 && !streamingMessage"
-            class="flex items-center justify-center h-full"
-          >
-            <div class="text-center">
-              <RobotOutlined class="text-6xl text-gray-400 mb-4" />
-              <h3 class="text-lg font-medium text-gray-900 mb-2">
-                {{ usePlanModeName }}
-              </h3>
-              <p class="text-gray-500">
-                {{ usePlanModeName }}
-              </p>
-            </div>
-          </div>
-
-          <!-- 消息列表 -->
-          <div
-            v-for="message in messages"
-            :key="message.id"
-            class="flex"
-            :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
-          >
-            <div
-              :class="[
-                'max-w-[70%] rounded-2xl px-4 py-3',
-                message.role === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white text-gray-800 shadow-sm border border-gray-200'
-              ]"
-            >
-              <div
-                class="text-sm leading-relaxed whitespace-pre-wrap mb-2"
-                v-html="formatMessage(message.content)"
-              />
-              <!-- MCP 工具调用显示 -->
-              <MCPToolDisplay
-                v-if="message.metadata?.toolCalls || message.metadata?.toolResults"
-                :tool-calls="message.metadata?.toolCalls"
-                :tool-results="message.metadata?.toolResults"
-                class="mb-3"
-              />
-              <div
-                :class="[
-                  'text-xs mt-2 opacity-70',
-                  message.role === 'user' ? 'text-right text-blue-100' : 'text-left text-gray-500'
-                ]"
-              >
-                {{ formatTime(message.timestamp) }}
-                <span
-                  v-if="message.metadata?.model"
-                  class="ml-2"
-                >
-                  · {{ message.metadata.model }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 流式消息 -->
-          <div
-            v-if="streamingMessage"
-            class="flex justify-start"
-          >
-            <div class="max-w-[70%] bg-white text-gray-800 shadow-sm border border-gray-200 rounded-2xl px-4 py-3">
-              <div
-                class="text-sm leading-relaxed whitespace-pre-wrap mb-2"
-                v-html="formatMessage(streamingMessage.content)"
-              />
-              <!-- MCP 工具调用显示 -->
-              <MCPToolDisplay
-                v-if="streamingMessage.metadata?.toolCalls || streamingMessage.metadata?.toolResults"
-                :tool-calls="streamingMessage.metadata?.toolCalls"
-                :tool-results="streamingMessage.metadata?.toolResults"
-                class="mb-3"
-              />
-              <div class="text-xs mt-2 text-gray-500 flex items-center">
-                <LoadingOutlined class="mr-1" />
-                正在输入...
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="border-t border-gray-200 bg-white px-4 py-3">
-          <div class="bg-gray-50 rounded-xl p-3">
-            <a-textarea
-              v-model:value="inputMessage"
-              :placeholder="usePlanModeName"
-              :auto-size="{ minRows: 1, maxRows: 4 }"
-              class="!border-none !bg-transparent !shadow-none !p-0 text-sm"
-              :disabled="!isConnected || isSending"
-              @keydown="handleKeyDown"
-            />
-            <div class="flex justify-between items-center mt-2">
-              <div class="flex items-center gap-2">
-                <div class="flex items-center gap-2">
-                  <div
-                    class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-blue-500 transition-colors duration-200"
-                    title="附件"
-                  >
-                    <PaperClipOutlined style="font-size: 16px;" />
-                  </div>
-                  <div
-                    class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-blue-500 transition-colors duration-200"
-                    title="链接"
-                  >
-                    <LinkOutlined style="font-size: 16px;" />
-                  </div>
-                  <div
-                    class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-blue-500 transition-colors duration-200"
-                    title="网络搜索"
-                    @click="showWebSearchModal = true"
-                  >
-                    <GlobalOutlined style="font-size: 16px;" />
-                  </div>
-                </div>
-                <!-- 执行环境组件 -->
-                <div class="flex items-center">
-                  <ExecutionEnvironment />
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <a-button
-                  size="small"
-                  :disabled="messages.length === 0"
-                  @click="clearCurrentConversation"
-                >
-                  清空
-                </a-button>
-                <a-button
-                  type="primary"
-                  shape="circle"
-                  :loading="isSending"
-                  :disabled="!isConnected || !inputMessage.trim()"
-                  @click="sendMessage"
-                >
-                  <template #icon>
-                    <ArrowUpOutlined />
-                  </template>
-                </a-button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ChatArea
+        ref="chatAreaRef"
+        :messages="messages"
+        :streaming-message="streamingMessage"
+        :use-plan-mode-name="usePlanModeName"
+        :is-connected="isConnected"
+        :is-sending="isSending"
+        @send-message="handleSendMessage"
+        @clear-conversation="clearCurrentConversation"
+        @show-web-search="showWebSearchModal = true"
+      />
     </div>
 
     <!-- 网络搜索模态框 -->
@@ -242,15 +100,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message as antMessage } from 'ant-design-vue'
-import {
-  RobotOutlined,
-  LoadingOutlined,
-  PaperClipOutlined,
-  LinkOutlined,
-  GlobalOutlined,
-  ArrowUpOutlined,
-} from '@ant-design/icons-vue'
-import ExecutionEnvironment from '../../components/common/ExecutionEnvironment.vue'
 import { USE_PLAN_MODE, useChatStore, useMCPServiceStore  } from '@/store'
 import type { MCPMessage, MCPServerStats } from './chat.type'
 import type { SearchResult } from '@/types/webSearch'
@@ -259,7 +108,7 @@ import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
 import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
 import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
-import MCPToolDisplay from '@/views/chat/components/MCPToolDisplay.vue'
+import ChatArea from '@/views/chat/components/ChatArea.vue'
 import WebSearchModal from '@/views/chat/components/WebSearchModal.vue'
 
 const chatStore = useChatStore()
@@ -274,7 +123,6 @@ const currentConversationId = computed(() => chatStore.currentConversationId)
 const messages = computed(() => chatStore.messages)
 
 const streamingMessage = ref<MCPMessage | null>(null)
-const inputMessage = ref('')
 const isSending = ref(false)
 const conversations = computed(() => chatStore.sortedConversations)
 const serverStats = ref<MCPServerStats | null>(null)
@@ -282,7 +130,7 @@ const showStats = ref(false)
 const showWebSearchModal = ref(false)
 
 // DOM 引用
-const messagesContainer = ref<HTMLElement>()
+const chatAreaRef = ref<InstanceType<typeof ChatArea>>()
 
 // 计算属性
 const isConnected = computed(() => true)
@@ -292,28 +140,12 @@ const usePlanMode = computed(() => chatStore.usePlanMode)
 // 获取启用的MCP服务器
 const enabledMCPServers = computed(() => mcpServiceStore.enabledMCPServers)
 
-// 格式化时间
-const formatTime = (timestamp: number) => {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-// 格式化消息内容
-const formatMessage = (content: string) => {
-  return content
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code class="bg-gray-100 px-1 rounded">$1</code>')
-}
 
 // 滚动到底部
 const scrollToBottom = () => {
   nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    if (chatAreaRef.value) {
+      chatAreaRef.value.scrollToBottom()
     }
   })
 }
@@ -346,9 +178,9 @@ const connectToMCPServer = async () => {
   }
 }
 
-// 发送消息
-const sendMessage = async () => {
-  if (!inputMessage.value.trim() || !isConnected.value || isSending.value) {
+// 处理发送消息
+const handleSendMessage = async (content: string) => {
+  if (!content.trim() || !isConnected.value || isSending.value) {
     return
   }
 
@@ -356,7 +188,6 @@ const sendMessage = async () => {
     return antMessage.error('请选择一个请求的模型')
   }
 
-  const content = inputMessage.value.trim()
   isSending.value = true
 
   try {
@@ -397,22 +228,11 @@ const sendMessage = async () => {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    // 请求成功后清空输入框
-    inputMessage.value = ''
-
   } catch (error) {
     console.error('[MCP Chat] Failed to send message:', error)
     antMessage.error('发送消息失败')
   } finally {
     isSending.value = false
-  }
-}
-
-// 处理键盘事件
-const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    sendMessage()
   }
 }
 
@@ -464,9 +284,10 @@ const clearCurrentConversation = async () => {
 
 // 处理网络搜索结果
 const handleSearchResult = (result: SearchResult) => {
-  // 将搜索结果插入到输入框中
+  // 将搜索结果传递给聊天区域组件
   const searchInfo = `[网络搜索结果]\n标题: ${result.title}\n链接: ${result.url}\n摘要: ${result.snippet}\n\n`
-  inputMessage.value = searchInfo + inputMessage.value
+  // 这里可以通过事件或其他方式将搜索结果传递给 ChatArea 组件
+  console.log('Search result:', searchInfo)
 }
 
 // 加载服务器统计信息

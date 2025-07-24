@@ -23,7 +23,7 @@ const BUN_PACKAGES = {
   // MUSL variants
   'linux-musl-x64': 'bun-linux-x64-musl.zip',
   'linux-musl-x64-baseline': 'bun-linux-x64-musl-baseline.zip',
-  'linux-musl-arm64': 'bun-linux-aarch64-musl.zip'
+  'linux-musl-arm64': 'bun-linux-aarch64-musl.zip',
 }
 
 /**
@@ -156,7 +156,7 @@ async function installBun() {
   const { platform, arch, isMusl, isBaseline } = detectPlatformAndArch()
 
   console.log(
-    `Installing bun ${version} for ${platform}-${arch}${isMusl ? ' (MUSL)' : ''}${isBaseline ? ' (baseline)' : ''}...`
+    `Installing bun ${version} for ${platform}-${arch}${isMusl ? ' (MUSL)' : ''}${isBaseline ? ' (baseline)' : ''}...`,
   )
 
   await downloadBunBinary(platform, arch, version, isMusl, isBaseline)
