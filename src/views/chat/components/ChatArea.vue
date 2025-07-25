@@ -123,6 +123,10 @@
                 <GlobalOutlined style="font-size: 16px;" />
               </div>
             </div>
+            <!-- 知识库选择器 -->
+            <div class="flex items-center">
+              <KnowledgeBaseSelector @knowledge-base-changed="handleKnowledgeBaseChanged" />
+            </div>
             <!-- 执行环境组件 -->
             <div class="flex items-center">
               <ExecutionEnvironment />
@@ -165,6 +169,7 @@ import {
   ArrowUpOutlined,
 } from '@ant-design/icons-vue'
 import ExecutionEnvironment from '@/components/common/ExecutionEnvironment.vue'
+import KnowledgeBaseSelector from '@/components/common/KnowledgeBaseSelector.vue'
 import MCPToolDisplay from './MCPToolDisplay.vue'
 import type { MCPMessage } from '../chat.type'
 import MarkdownIt from 'markdown-it'
@@ -298,6 +303,13 @@ const handleKeyDown = (event: KeyboardEvent) => {
     // 发送消息
     emit('send-message', currentValue)
   }
+}
+
+// 处理知识库变更
+const handleKnowledgeBaseChanged = (kb: any) => {
+  console.log('知识库已变更:', kb)
+  // 这里可以添加知识库变更后的处理逻辑
+  // 比如更新聊天上下文、显示提示信息等
 }
 
 // 暴露滚动到底部方法

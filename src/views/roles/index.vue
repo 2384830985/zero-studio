@@ -53,34 +53,37 @@
 
     <!-- 角色列表 -->
     <div class="flex-1 overflow-y-auto p-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <div
           v-for="role in filteredRoles"
           :key="role.id"
-          class="bg-white rounded-md border p-2 hover:shadow-sm transition-all duration-200 cursor-pointer"
+          class="group bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md hover:shadow-gray-100 transition-all duration-300 cursor-pointer relative overflow-hidden"
           :class="selectedRoleId === role.id
-            ? 'border-blue-500 bg-blue-50 shadow-sm ring-1 ring-blue-200'
-            : 'border-gray-200 hover:border-gray-300'"
+            ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50 shadow-md shadow-purple-100 ring-1 ring-purple-200'
+            : 'hover:border-gray-300 hover:-translate-y-0.5'"
           @click="selectRole(role.id)"
         >
+          <!-- 背景装饰 -->
+          <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 rounded-full -translate-y-8 translate-x-8" />
+
           <!-- 角色头部 -->
-          <div class="flex items-center justify-between mb-1">
-            <div class="flex items-center gap-1.5">
-              <div class="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded flex items-center justify-center text-white font-medium text-xs">
+          <div class="flex items-start justify-between mb-3 relative z-10">
+            <div class="flex items-center gap-2.5 flex-1 min-w-0">
+              <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm font-semibold text-sm">
                 {{ role.avatar || role.name.charAt(0) }}
               </div>
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1">
-                  <h3
-                    class="text-xs font-medium truncate"
-                    :class="selectedRoleId === role.id ? 'text-blue-900' : 'text-gray-900'"
-                  >
-                    {{ role.name }}
-                  </h3>
-                </div>
+                <h3
+                  class="text-sm font-semibold truncate mb-0.5 leading-tight"
+                  :class="selectedRoleId === role.id ? 'text-purple-900' : 'text-gray-900'"
+                >
+                  {{ role.name }}
+                </h3>
                 <span
-                  class="text-xs"
-                  :class="selectedRoleId === role.id ? 'text-blue-700' : 'text-gray-500'"
+                  class="text-xs font-medium px-1.5 py-0.5 rounded-full"
+                  :class="selectedRoleId === role.id
+                    ? 'text-purple-700 bg-purple-100'
+                    : 'text-gray-600 bg-gray-100'"
                 >
                   {{ getCategoryName(role.category) }}
                 </span>
@@ -93,16 +96,17 @@
               <a-button
                 type="text"
                 size="small"
-                class="text-gray-400 hover:text-gray-600 w-6 h-6 p-0 flex items-center justify-center"
+                class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 w-7 h-7 p-0 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-all duration-200"
               >
                 <template #icon>
-                  <MoreOutlined class="text-xs flex items-center justify-center" />
+                  <MoreOutlined class="text-sm" />
                 </template>
               </a-button>
               <template #overlay>
-                <a-menu>
+                <a-menu class="rounded-lg shadow-lg border-0">
                   <a-menu-item
                     key="edit"
+                    class="rounded-md mx-1 my-1"
                     @click="editRole(role)"
                   >
                     <EditOutlined />
@@ -110,6 +114,7 @@
                   </a-menu-item>
                   <a-menu-item
                     key="toggle"
+                    class="rounded-md mx-1 my-1"
                     @click="toggleRoleEnabled(role.id)"
                   >
                     <template #icon>
@@ -118,10 +123,11 @@
                     </template>
                     {{ role.isEnabled ? '禁用' : '启用' }}
                   </a-menu-item>
-                  <a-menu-divider />
+                  <a-menu-divider class="mx-1" />
                   <a-menu-item
                     key="delete"
                     danger
+                    class="rounded-md mx-1 my-1"
                     @click="deleteRole(role.id)"
                   >
                     <DeleteOutlined />
@@ -133,46 +139,48 @@
           </div>
 
           <!-- 角色描述 -->
-          <p
-            class="text-xs mb-1 line-clamp-1"
-            :class="selectedRoleId === role.id ? 'text-blue-700' : 'text-gray-600'"
-          >
-            {{ role.description }}
-          </p>
+          <div class="mb-3 relative z-10">
+            <p
+              class="text-xs leading-relaxed line-clamp-2 min-h-[2.5rem]"
+              :class="selectedRoleId === role.id ? 'text-purple-700' : 'text-gray-600'"
+            >
+              {{ role.description || '暂无描述，点击编辑添加角色描述信息...' }}
+            </p>
+          </div>
 
           <!-- 标签和状态 -->
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between pt-3 border-t border-gray-100 relative z-10">
             <div class="flex flex-wrap gap-1">
               <span
                 v-for="tag in role.tags.slice(0, 2)"
                 :key="tag"
-                class="text-xs px-1 py-0.5 rounded"
+                class="text-xs px-1.5 py-0.5 rounded-full font-medium"
                 :class="selectedRoleId === role.id
-                  ? 'bg-blue-200 text-blue-800'
+                  ? 'bg-purple-100 text-purple-700'
                   : 'bg-gray-100 text-gray-600'"
               >
                 {{ tag }}
               </span>
               <span
                 v-if="role.tags.length > 2"
-                class="text-xs px-1 py-0.5 rounded"
+                class="text-xs px-1.5 py-0.5 rounded-full font-medium"
                 :class="selectedRoleId === role.id
-                  ? 'bg-blue-200 text-blue-800'
+                  ? 'bg-purple-100 text-purple-700'
                   : 'bg-gray-100 text-gray-600'"
               >
                 +{{ role.tags.length - 2 }}
               </span>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1.5">
               <div
                 class="w-1.5 h-1.5 rounded-full"
-                :class="role.isEnabled ? 'bg-green-500' : 'bg-gray-300'"
+                :class="role.isEnabled ? 'bg-green-500' : 'bg-gray-400'"
               />
               <div
                 v-if="selectedRoleId === role.id"
-                class="flex items-center gap-1 selected-indicator"
+                class="flex items-center gap-1.5 selected-indicator"
               >
-                <div class="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                <div class="w-3.5 h-3.5 bg-purple-500 rounded-full flex items-center justify-center shadow-sm">
                   <svg
                     class="w-2 h-2 text-white"
                     fill="currentColor"
@@ -185,7 +193,7 @@
                     />
                   </svg>
                 </div>
-                <span class="text-xs text-blue-600 font-medium">当前</span>
+                <span class="text-xs text-purple-600 font-semibold">当前</span>
               </div>
             </div>
           </div>
@@ -317,6 +325,13 @@ const handleSaveRole = () => {
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

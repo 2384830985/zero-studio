@@ -5,6 +5,9 @@ import TranslateView from '../views/translate/index.vue'
 import SettingsView from '../views/settings/SettingsView.vue'
 import DifyView from '../views/dify/index.vue'
 import RoleManagement from '../views/roles/index.vue'
+import KnowledgeView from '../views/knowledge/index.vue'
+import JsonConverter from '../views/tools/JsonConverter.vue'
+import ToolsIndex from '../views/tools/index.vue'
 
 // 设置页面的子组件
 import ModelServiceSettings from '../views/settings/ModelServiceSettings.vue'
@@ -35,6 +38,11 @@ const routes = [
         component: RoleManagement,
       },
       {
+        path: 'knowledge',
+        name: 'Knowledge',
+        component: KnowledgeView,
+      },
+      {
         path: 'translate',
         name: 'Translate',
         component: TranslateView,
@@ -43,6 +51,16 @@ const routes = [
         path: 'dify',
         name: 'Dify',
         component: DifyView,
+      },
+      {
+        path: 'tools',
+        name: 'Tools',
+        component: ToolsIndex,
+      },
+      {
+        path: 'tools/json-converter',
+        name: 'JsonConverter',
+        component: JsonConverter,
       },
       {
         path: 'settings',
