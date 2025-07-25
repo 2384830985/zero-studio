@@ -188,39 +188,38 @@ export class ChatRoutes {
         console.log('[Chat Routes] Calling AIGC API for MCP chat...')
 
         // 定义回调函数来实时发送工具调用信息
-        const onToolCall = (toolCall: any) => {
-          toolCalls.push(toolCall)
-          // 实时发送工具调用信息
-          this.communication.sendStreaming({
-            conversationId,
-            messageId: assistantMessageId,
-            role: CommunicationRole.ASSISTANT,
-            metadata: {
-              toolCalls: [toolCall],
-            },
-          })
-        }
+        // const onToolCall = (toolCall: any) => {
+        //   toolCalls.push(toolCall)
+        //   // 实时发送工具调用信息
+        //   this.communication.sendStreaming({
+        //     conversationId,
+        //     messageId: assistantMessageId,
+        //     role: CommunicationRole.ASSISTANT,
+        //     metadata: {
+        //       toolCalls: [toolCall],
+        //     },
+        //   })
+        // }
 
-        const onToolResult = (toolResult: any) => {
-          toolResults.push(toolResult)
-          // 实时发送工具结果信息
-          this.communication.sendStreaming({
-            conversationId,
-            messageId: assistantMessageId,
-            role: CommunicationRole.ASSISTANT,
-            metadata: {
-              toolCalls,
-              toolResults: [toolResult],
-            },
-          })
-        }
+        // const onToolResult = (toolResult: any) => {
+        //   toolResults.push(toolResult)
+        //   // 实时发送工具结果信息
+        //   this.communication.sendStreaming({
+        //     conversationId,
+        //     messageId: assistantMessageId,
+        //     role: CommunicationRole.ASSISTANT,
+        //     metadata: {
+        //       toolCalls,
+        //       toolResults: [toolResult],
+        //     },
+        //   })
+        // }
         // 调用 AIGC API（可能包含工具调用）
         const response = await this.aigcService.callAIGC(
           userMessage,
-          true,
           metadata,
-          onToolCall,
-          onToolResult,
+          // onToolCall,
+          // onToolResult,
         )
 
         let fullContent = ''

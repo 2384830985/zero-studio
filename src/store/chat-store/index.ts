@@ -15,6 +15,14 @@ export interface IUsePlanMode {
   value: USE_PLAN_MODE
 }
 
+// 助手设置接口
+export interface AssistantSettings {
+  modelTemperature: number
+  contextCount: number
+  streamOutput: boolean
+  maxTokens: number
+}
+
 interface IIseChatStore {
   UsePlanModeList: IUsePlanMode[],
   usePlanMode: USE_PLAN_MODE,
@@ -28,7 +36,9 @@ interface IIseChatStore {
   selectedModel?: {
     service: ModelService,
     model: ModelInfo
-  }
+  },
+  // 助手设置
+  assistantSettings: AssistantSettings
 }
 
 const UsePlanModeList: IUsePlanMode[] = [
@@ -61,6 +71,13 @@ export const useChatStore = defineStore('chat', {
       conversations: {},
       conversationList: [],
       selectedModel: undefined,
+      // 助手设置默认值
+      assistantSettings: {
+        modelTemperature: 0.7,
+        contextCount: 10,
+        streamOutput: true,
+        maxTokens: 2000,
+      },
     }
   },
   getters: {
@@ -241,6 +258,24 @@ export const useChatStore = defineStore('chat', {
         this.selectedMCPServers.push(serverId)
       }
       return index
+    },
+
+    // 更新助手设置
+    updateAssistantSettings(settings: Partial<AssistantSettings>) {
+      this.assistantSettings = {
+        ...this.assistantSettings,
+        ...settings,
+      }
+    },
+
+    // 重置助手设置
+    resetAssistantSettings() {
+      this.assistantSettings = {
+        modelTemperature: 0.7,
+        contextCount: 10,
+        streamOutput: true,
+        maxTokens: 2000,
+      }
     },
 
     // 初始化store时确保有一个默认对话

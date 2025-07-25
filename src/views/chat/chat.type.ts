@@ -1,3 +1,5 @@
+import {AssistantSettings} from '@/store'
+
 export interface MCPMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
@@ -8,6 +10,7 @@ export interface MCPMessage {
     temperature?: number
     maxTokens?: number
     stream?: boolean
+    assistantSettings?: AssistantSettings
     // MCP 工具调用相关信息
     toolCalls?: MCPToolCall[]
     toolResults?: MCPToolResult[]

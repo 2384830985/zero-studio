@@ -14,7 +14,6 @@ export class AIGCService {
    */
   async handleToolCallingWithLangchain(
     messages: any[],
-    stream: boolean,
     metadata: any,
   ): Promise<any> {
     try {
@@ -110,8 +109,6 @@ export class AIGCService {
           ...toolMessages,
           new HumanMessage(summaryPrompt),
         ]
-        // console.log('finalMessages', finalMessages)
-        // console.log('stream', stream)
 
         // 如果是流式响应，返回流式结果
         const finalStream = await llm.invoke(finalMessages)
@@ -125,7 +122,7 @@ export class AIGCService {
       }
 
       // 没有工具调用，直接返回响应
-      if (stream) {
+      if (metadata.settings.streamOutput) {
         const responseStream = await llmWithTools.stream(messages)
         return {
           stream: responseStream,
@@ -138,7 +135,7 @@ export class AIGCService {
     } catch (error) {
       console.error('[AIGC Service] Error in langchain tool calling:', error)
       console.log('[AIGC Service] Falling back to direct API call due to langchain error')
-      return this.callAIGC(messages, stream, [], metadata)
+      return this.callAIGC(messages,metadata)
     }
   }
 
@@ -147,7 +144,6 @@ export class AIGCService {
    */
   async callAIGC(
     messages: any[],
-    stream = false,
     metadata: any,
   ): Promise<any> {
     if (!metadata.model) {
@@ -161,7 +157,7 @@ export class AIGCService {
       McpServer?.langchainTools?.length > 0
     ) {
       try {
-        return await this.handleToolCallingWithLangchain(messages, stream, metadata)
+        return await this.handleToolCallingWithLangchain(messages, metadata)
       } catch (error) {
         console.error('[AIGC Service] Tool calling failed, falling back to direct API call:', error)
         // 继续执行直接API调用
@@ -169,12 +165,22 @@ export class AIGCService {
     }
 
     try {
-      const stream = getModel(metadata).stream(
-        messages,
-      )
-      return {
-        stream: await stream,
+      if (metadata.settings.streamOutput) {
+        const stream = getModel(metadata).stream(
+          messages,
+        )
+        return {
+          stream: await stream,
+        }
+      } else {
+        const res = await getModel(metadata).invoke(
+          messages,
+        )
+        return {
+          content: res.content,
+        }
       }
+
     } catch (error) {
       console.error('[AIGC Service] Error calling AIGC API:', error)
       throw error

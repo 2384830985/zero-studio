@@ -238,6 +238,7 @@ const handleSendMessage = async (content: string) => {
       metadata: {
         stream: true,
         model: selectedModel.value.model.name,
+        settings: chatStore.assistantSettings,
         service: {
           id: selectedModel.value.service.id,
           name: selectedModel.value.service.name,

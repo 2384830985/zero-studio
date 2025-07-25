@@ -272,15 +272,31 @@ const handleSendMessage = () => {
   }
 
   const content = inputMessage.value.trim()
-  emit('send-message', content)
+  // 先清空输入框，再发送消息，避免数据丢失
   inputMessage.value = ''
+  emit('send-message', content)
 }
 
 // 处理键盘事件
 const handleKeyDown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
+  const isEnterPressed = event.key === 'Enter'
+  if (isEnterPressed && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
     event.preventDefault()
-    handleSendMessage()
+
+    // 直接从事件目标获取当前输入值，避免响应式延迟问题
+    const target = event.target as HTMLTextAreaElement
+    const currentValue = target.value.trim()
+
+    if (!currentValue || !props.isConnected || props.isSending) {
+      return
+    }
+
+    // 立即清空输入框和响应式变量
+    target.value = ''
+    inputMessage.value = ''
+
+    // 发送消息
+    emit('send-message', currentValue)
   }
 }
 

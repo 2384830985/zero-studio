@@ -60,9 +60,12 @@
             <span>最大 Token 数</span>
           </div>
           <div class="setting-control">
-            <a-switch
-              v-model:checked="maxTokenEnabled"
+            <a-input-number
+              v-model:value="maxTokens"
+              :min="1"
+              :max="2000"
               size="small"
+              class="custom-input-number"
             />
           </div>
         </div>
@@ -217,37 +220,6 @@
       </div>
     </div>
 
-    <!-- 字体设置 -->
-    <div class="settings-section">
-      <div class="section-header">
-        <div class="section-icon">
-          📝
-        </div>
-        <h3 class="section-title">
-          字体设置
-        </h3>
-      </div>
-      <div class="section-content">
-        <div class="setting-item">
-          <div class="setting-label">
-            <span>消息字体大小</span>
-            <span class="setting-value">{{ fontSize }}px</span>
-          </div>
-          <div class="setting-control font-size-control">
-            <span class="font-preview small">A</span>
-            <a-slider
-              v-model:value="fontSize"
-              :min="12"
-              :max="20"
-              :step="1"
-              class="custom-slider flex-1"
-            />
-            <span class="font-preview large">A</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- 代码块设置 -->
     <div class="settings-section">
       <div class="section-header">
@@ -287,14 +259,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
+import { useChatStore } from '@/store'
 
-// 助手设置
-const modelTemperature = ref(0.7)
-const contextCount = ref(10)
-const streamOutput = ref(true)
-const maxTokenEnabled = ref(false)
+const chatStore = useChatStore()
+
+// 助手设置 - 使用 computed 与 store 同步
+const modelTemperature = computed({
+  get: () => chatStore.assistantSettings.modelTemperature,
+  set: (value: number) => chatStore.updateAssistantSettings({ modelTemperature: value }),
+})
+
+const contextCount = computed({
+  get: () => chatStore.assistantSettings.contextCount,
+  set: (value: number) => chatStore.updateAssistantSettings({ contextCount: value }),
+})
+
+const streamOutput = computed({
+  get: () => chatStore.assistantSettings.streamOutput,
+  set: (value: boolean) => chatStore.updateAssistantSettings({ streamOutput: value }),
+})
+
+const maxTokens = computed({
+  get: () => chatStore.assistantSettings.maxTokens,
+  set: (value: number) => chatStore.updateAssistantSettings({ maxTokens: value }),
+})
 
 // 消息设置
 const showPrompts = ref(false)
@@ -313,10 +303,10 @@ const fontSize = ref(14)
 
 // 重置设置
 const resetSettings = () => {
-  modelTemperature.value = 0.7
-  contextCount.value = 10
-  streamOutput.value = true
-  maxTokenEnabled.value = false
+  // 重置助手设置
+  chatStore.resetAssistantSettings()
+
+  // 重置其他设置
   showPrompts.value = false
   showTokenUsage.value = true
   useMonospaceFont.value = false
@@ -437,12 +427,13 @@ const resetSettings = () => {
 }
 
 :deep(.custom-slider .ant-slider-handle) {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #3b82f6;
   background: #ffffff;
 }
-
+:deep(.temperature-input .ant-input-number-input) {
+  padding: 2px 6px;
+  font-size: 12px;
+  text-align: center;
+}
 .custom-input-number {
   width: 60px;
 }

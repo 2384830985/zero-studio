@@ -4,6 +4,12 @@ import { ChatOpenAI } from '@langchain/openai'
 interface IMetadata {
   stream: boolean;
   model: string
+  setting: {
+    modelTemperature: number
+    contextCount: number
+    streamOutput: boolean
+    maxTokens: number
+  }
   service: {
     id: string,
     name: string,
@@ -36,8 +42,8 @@ export const getModel = (metadata: IMetadata) => {
       baseURL: metadata.service.apiUrl,
     },
     model: metadata.model, // 使用映射后的模型名称
-    temperature: 0.7,
-    maxTokens: 2000,
+    temperature: metadata?.setting?.modelTemperature || 0,
+    maxTokens: metadata?.setting?.maxTokens || 2000,
     streaming: metadata.stream,
   })
 }
