@@ -91,6 +91,16 @@
         @send-message="handleSendMessage"
         @clear-conversation="clearCurrentConversation"
         @show-web-search="showWebSearchModal = true"
+        @show-search-results="handleShowSearchResults"
+      />
+
+      <!-- 搜索结果面板 -->
+      <SearchResultsPanel
+        v-if="showSearchResults"
+        :search-results="searchResults"
+        @close="showSearchResults = false"
+        @result-click="handleSearchResultClick"
+        @clear-results="clearSearchResults"
       />
     </div>
 
@@ -116,6 +126,7 @@ import ChatRoleSelector from '@/views/chat/components/ChatRoleSelector.vue'
 import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
 import ChatArea from '@/views/chat/components/ChatArea.vue'
 import WebSearchModal from '@/views/chat/components/WebSearchModal.vue'
+import SearchResultsPanel from '@/views/chat/components/SearchResultsPanel.vue'
 
 const chatStore = useChatStore()
 const mcpServiceStore = useMCPServiceStore()
@@ -135,6 +146,8 @@ const conversations = computed(() => chatStore.sortedConversations)
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
 const showWebSearchModal = ref(false)
+const showSearchResults = ref(false)
+const searchResults = ref<any[]>([])
 
 // DOM 引用
 const chatAreaRef = ref<InstanceType<typeof ChatArea>>()
@@ -311,10 +324,94 @@ const clearCurrentConversation = async () => {
 
 // 处理网络搜索结果
 const handleSearchResult = (result: SearchResult) => {
-  // 将搜索结果传递给聊天区域组件
-  const searchInfo = `[网络搜索结果]\n标题: ${result.title}\n链接: ${result.url}\n摘要: ${result.snippet}\n\n`
-  // 这里可以通过事件或其他方式将搜索结果传递给 ChatArea 组件
-  console.log('Search result:', searchInfo)
+  // 将搜索结果添加到搜索结果列表
+  searchResults.value.push({
+    id: Date.now().toString(),
+    type: 'web',
+    title: result.title,
+    snippet: result.snippet,
+    url: result.url,
+    source: result.url,
+    metadata: {
+      publishTime: new Date().toISOString(),
+    },
+  })
+
+  // 显示搜索结果面板
+  showSearchResults.value = true
+
+  console.log('Search result:', result)
+}
+
+// 处理搜索结果点击
+const handleSearchResultClick = (result: any) => {
+  // 可以将搜索结果插入到聊天中或执行其他操作
+  console.log('Search result clicked:', result)
+}
+
+// 清空搜索结果
+const clearSearchResults = () => {
+  searchResults.value = []
+}
+
+// 处理显示搜索结果
+const handleShowSearchResults = () => {
+  // 添加一些示例搜索结果用于演示
+  if (searchResults.value.length === 0) {
+    searchResults.value = [
+      {
+        id: '1',
+        type: 'weather',
+        title: '北京天气预报',
+        snippet: '今天7天 8-15℃ 40℃ 雷达图 25日（今天）中雨转雷阵雨 30℃ 26日（明天）雷阵雨 32℃ 3级 27日（后天）雷阵雨 31℃',
+        source: '天气预报',
+        metadata: {
+          weather: {
+            temperature: '8-15℃',
+            humidity: '65%',
+            wind: '3级',
+          },
+        },
+      },
+      {
+        id: '2',
+        type: 'web',
+        title: '北京-天气预报',
+        snippet: '国家气象中心提供权威的天气预报信息，包括温度、湿度、风力等详细数据，为您的出行提供参考。',
+        url: 'http://www.nmc.cn/publish/forecast/ABeijing/Beijing.html',
+        source: 'www.nmc.cn',
+        metadata: {
+          publishTime: '2024-03-13',
+          tags: ['天气', '预报', '北京', '气象', '温度'],
+        },
+      },
+      {
+        id: '3',
+        type: 'ping',
+        title: 'Google 网络连接测试',
+        snippet: '对 google.com 进行网络连接测试，检测网络延迟和稳定性，帮助诊断网络问题。',
+        metadata: {
+          ping: {
+            latency: 45,
+            packetLoss: 0,
+          },
+          tags: ['网络', '测试', 'Google', '延迟'],
+        },
+      },
+      {
+        id: '4',
+        type: 'knowledge',
+        title: '人工智能发展历程',
+        snippet: '人工智能从1956年达特茅斯会议开始，经历了多次发展浪潮，如今在深度学习推动下迎来新的突破。',
+        source: '知识库',
+        metadata: {
+          tags: ['AI', '历史', '技术'],
+        },
+      },
+    ]
+  }
+
+  showSearchResults.value = true
 }
 
 // 加载服务器统计信息

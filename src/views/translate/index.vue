@@ -105,9 +105,9 @@
       <!-- 输入区域 -->
       <div class="flex-1 flex flex-col border-r border-gray-200">
         <!-- 输入标题 -->
-        <div class="bg-white border-b border-gray-200 px-4 py-2">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-gray-700">
+        <div class="bg-white border-b border-gray-200 px-4 py-2 min-h-[41px]">
+          <div class="flex items-center justify-between h-full">
+            <span class="text-sm font-medium text-gray-700 leading-none">
               {{ getLanguageName(sourceLanguage) }}
               <span
                 v-if="detectedLanguage && sourceLanguage === 'auto'"
@@ -121,18 +121,20 @@
                 <a-button
                   type="text"
                   size="small"
+                  class="!h-6 !w-6 !p-0 flex items-center justify-center"
                   @click="clearInput"
                 >
-                  <DeleteOutlined />
+                  <DeleteOutlined class="!text-xs" />
                 </a-button>
               </a-tooltip>
               <a-tooltip title="粘贴">
                 <a-button
                   type="text"
                   size="small"
+                  class="!h-6 !w-6 !p-0 flex items-center justify-center"
                   @click="pasteText"
                 >
-                  <CopyOutlined />
+                  <CopyOutlined class="!text-xs" />
                 </a-button>
               </a-tooltip>
             </div>
@@ -168,9 +170,9 @@
       <!-- 输出区域 -->
       <div class="flex-1 flex flex-col">
         <!-- 输出标题 -->
-        <div class="bg-white border-b border-gray-200 px-4 py-2">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-gray-700">
+        <div class="bg-white border-b border-gray-200 px-4 py-2 min-h-[41px]">
+          <div class="flex items-center justify-between h-full">
+            <span class="text-sm font-medium text-gray-700 leading-none">
               {{ getLanguageName(targetLanguage) }}
             </span>
             <div
@@ -181,27 +183,30 @@
                 <a-button
                   type="text"
                   size="small"
+                  class="!h-6 !w-6 !p-0 flex items-center justify-center"
                   @click="copyResult"
                 >
-                  <CopyOutlined />
+                  <CopyOutlined class="!text-xs" />
                 </a-button>
               </a-tooltip>
               <a-tooltip title="朗读">
                 <a-button
                   type="text"
                   size="small"
+                  class="!h-6 !w-6 !p-0 flex items-center justify-center"
                   @click="speakResult"
                 >
-                  <SoundOutlined />
+                  <SoundOutlined class="!text-xs" />
                 </a-button>
               </a-tooltip>
               <a-tooltip title="收藏">
                 <a-button
                   type="text"
                   size="small"
+                  class="!h-6 !w-6 !p-0 flex items-center justify-center"
                   @click="saveTranslation"
                 >
-                  <StarOutlined />
+                  <StarOutlined class="!text-xs" />
                 </a-button>
               </a-tooltip>
             </div>
@@ -350,7 +355,7 @@ const swapLanguages = () => {
     const temp = sourceLanguage.value
     sourceLanguage.value = targetLanguage.value
     targetLanguage.value = temp
-    
+
     // 同时交换输入输出文本
     const tempText = inputText.value
     inputText.value = outputText.value
@@ -366,11 +371,11 @@ const translateText = async () => {
 
   isTranslating.value = true
   const startTime = Date.now()
-  
+
   try {
     // 模拟翻译API调用
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
+
     // 模拟语言检测
     if (sourceLanguage.value === 'auto') {
       detectedLanguage.value = 'en' // 模拟检测结果

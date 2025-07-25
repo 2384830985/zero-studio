@@ -122,6 +122,13 @@
               >
                 <GlobalOutlined style="font-size: 16px;" />
               </div>
+              <div
+                class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-purple-500 transition-colors duration-200"
+                title="显示搜索结果"
+                @click="$emit('show-search-results')"
+              >
+                <SearchOutlined style="font-size: 16px;" />
+              </div>
             </div>
             <!-- 知识库选择器 -->
             <div class="flex items-center">
@@ -136,7 +143,7 @@
             <a-button
               size="small"
               :disabled="messages.length === 0"
-              @click="$emit('clear-conversation')"
+              @click="handleClearConversation"
             >
               清空
             </a-button>
@@ -160,6 +167,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, defineProps, defineEmits } from 'vue'
+import { Modal } from 'ant-design-vue'
 import {
   RobotOutlined,
   LoadingOutlined,
@@ -167,6 +175,7 @@ import {
   LinkOutlined,
   GlobalOutlined,
   ArrowUpOutlined,
+  SearchOutlined,
 } from '@ant-design/icons-vue'
 import ExecutionEnvironment from '@/components/common/ExecutionEnvironment.vue'
 import KnowledgeBaseSelector from '@/components/common/KnowledgeBaseSelector.vue'
@@ -193,6 +202,7 @@ const emit = defineEmits<{
   'send-message': [content: string]
   'clear-conversation': []
   'show-web-search': []
+  'show-search-results': []
 }>()
 
 // 响应式数据
@@ -310,6 +320,20 @@ const handleKnowledgeBaseChanged = (kb: any) => {
   console.log('知识库已变更:', kb)
   // 这里可以添加知识库变更后的处理逻辑
   // 比如更新聊天上下文、显示提示信息等
+}
+
+// 处理清空对话
+const handleClearConversation = () => {
+  Modal.confirm({
+    title: '确认清空对话',
+    content: '确定要清空当前对话的所有消息吗？此操作不可撤销。',
+    okText: '确定',
+    cancelText: '取消',
+    okType: 'danger',
+    onOk() {
+      emit('clear-conversation')
+    },
+  })
 }
 
 // 暴露滚动到底部方法
