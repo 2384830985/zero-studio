@@ -1,4 +1,4 @@
-import {BrowserWindow, ipcMain} from 'electron'
+import {BrowserWindow} from 'electron'
 // import { log } from 'node:console'
 import { MCPMessage } from '../types'
 import { AIGCService } from '../services/AIGCService'
@@ -7,27 +7,22 @@ import { generateId, generateMockMCPResponseContent } from '../utils/helpers'
 import { EnabledMCPServer } from '../../mcp/StdioMcpServerToFunction'
 import {Communication, CommunicationRole} from '../../mcp'
 import {ReActService} from '../services/ReActService'
+import {PlanService} from '../services/PlanService'
 
-export class ChatRoutes {
+export class Chat {
   private aigcService: AIGCService
   private win: BrowserWindow
   private communication: Communication
+  private planService!: PlanService
 
   constructor(
-    aigcService: AIGCService,
     win: BrowserWindow,
+    aigcService: AIGCService,
   ) {
     this.aigcService = aigcService
     this.win = win
     this.communication = new Communication(win)
-    this.setupRoutes()
-  }
-
-  private setupRoutes() {
-    // 发送消息到聊天
-    ipcMain.handle('chat-send', this.handleMCPChatSend.bind(this))
-    // 发送聊天到 ReAct
-    ipcMain.handle('chat-reAct', this.handleMCPChatReactSend.bind(this))
+    this.planService = new PlanService(win)
   }
 
   /**
@@ -36,7 +31,7 @@ export class ChatRoutes {
    * @param object
    * @private
    */
-  private async handleMCPChatReactSend(_, object) {
+  async handleChatReactSend(_, object) {
     const response = JSON.parse(object)
     // oldMessage
     const { content, metadata = {} } = response
@@ -71,6 +66,9 @@ export class ChatRoutes {
       console.log(`[${step.type}] ${step.content}`)
       // 发送完整消息
       this.communication.setMessage({
+        isComplete: false,
+        content: '',
+        metadata: undefined,
         conversationId: conversationId,
         message: {
           id: generateId(),
@@ -107,6 +105,70 @@ export class ChatRoutes {
     })
   }
 
+  async handleChatPlanSend(_, object) {
+    try {
+      const { content, conversationId, metadata = {} } = JSON.parse(object)
+
+      if (!content || typeof content !== 'string') {
+        return {
+          code: 400,
+          data: {
+            error: 'Content (goal) is required',
+          },
+        }
+      }
+
+      await this.planService.initializePlanAgent(metadata)
+
+      if (!this.planService.isPlanAgentAvailable()) {
+        return {
+          code: 503,
+          data: {
+            error: 'PlanAndExecute agent not available',
+          },
+        }
+      }
+
+      console.log(`[MCP Server] Creating plan for goal: ${content}`)
+
+      // 创建执行计划
+      const plan = await this.planService.createPlan(content.trim())
+      if (!plan) {
+        return {
+          code: 500,
+          data: {
+            error: 'Failed to create plan',
+          },
+        }
+      }
+
+      // 如果有对话ID，开始执行计划并流式返回结果
+      if (conversationId) {
+        this.planService.executePlanWithStreaming(plan, conversationId, metadata)
+      }
+      return {
+        success: true,
+        plan: {
+          id: plan.id,
+          goal: plan.goal,
+          status: plan.status,
+          stepsCount: plan.steps.length,
+          createdAt: plan.createdAt,
+        },
+        conversationId,
+      }
+    } catch (error) {
+      console.error('[MCP Server] Error creating plan:', error)
+      return {
+        code: 500,
+        data: {
+          error: 'Failed to create plan',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+      }
+    }
+  }
+
   /**
    * Chat
    * @param _
@@ -114,7 +176,7 @@ export class ChatRoutes {
    * @private
    */
 
-  private async handleMCPChatSend(_, object) {
+  async handleChatSend(_, object) {
     try {
       const response = JSON.parse(object)
       const { content, conversationId, metadata = {}, enabledMCPServers, oldMessage } = response

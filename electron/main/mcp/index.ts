@@ -31,24 +31,26 @@ export interface IMCPToolResult {
   executionTime: number
 }
 
+export interface IMetadata {
+  stream: boolean
+  model: string
+  toolCalls: IMCPToolCall[]
+  toolResults: IMCPToolResult[]
+}
+
 interface IStreamingParams {
+  id: string
   conversationId: string
   messageId: string
   role: CommunicationRole,
   timestamp: number
   content: string
   isComplete: boolean
-  metadata: {
-    stream?: boolean
-    model?: string
-    toolCalls: IMCPToolCall[]
-    toolResults: IMCPToolResult[]
-  }
+  metadata: Partial<IMetadata>
 }
 
-interface IMessageParams extends IStreamingParams{
-  conversationId: string
-  message: IStreamingParams
+interface IMessageParams extends Partial<IStreamingParams>{
+  message?: IStreamingParams
 }
 
 export class Communication {
@@ -57,7 +59,7 @@ export class Communication {
     this.win = win
   }
 
-  sendStreaming(streamingParams: IStreamingParams) {
+  sendStreaming(streamingParams: Partial<IStreamingParams>) {
     // 实时发送工具调用信息
     this.win.webContents.send(CommunicationType.STREAMING, {
       ...streamingParams,
@@ -66,7 +68,7 @@ export class Communication {
     })
   }
 
-  setMessage (messageParams: IMessageParams) {
+  setMessage (messageParams: Partial<IMessageParams>) {
     // 结束发送工具调用信息
     this.win.webContents.send(CommunicationType.MESSAGE, {
       ...messageParams,

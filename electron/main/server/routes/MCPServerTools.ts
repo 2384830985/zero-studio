@@ -1,14 +1,7 @@
-import { ipcMain } from 'electron'
 import { McpServer } from '../../mcp/mcp-server'
 
-export class MCPServerRoutes {
-
-  constructor() {
-    //
-    ipcMain.handle('connect-mcp', this.handleConnectMCPSend.bind(this))
-  }
-
-  private async handleConnectMCPSend (_, object) {
+export class MCPServerTools {
+  static async handleConnectMCPSend (_, object) {
     try {
       const response = JSON.parse(object)
       const { enabledMCPServers } = response

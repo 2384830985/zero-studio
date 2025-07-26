@@ -4,9 +4,6 @@ import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import { log } from 'node:console'
-import { Server } from './server'
-// import { runInstallScript, isBinaryExists, getBinaryPath } from './utils/process'
-// import { execSync } from 'child_process'
 import { registerIpc } from './ipc'
 import dotenv from 'dotenv'
 
@@ -37,7 +34,6 @@ if (fs.existsSync(envPath)) {
   console.log(`⚠️  ${envFileName} file not found, using system environment variables only`)
 }
 
-console.log('🚀 Electron Main Process Starting...')
 console.log('📄 Loaded environment variables from:', envPath)
 console.log('Environment variables at startup:', {
   NODE_ENV: process.env.NODE_ENV,
@@ -78,23 +74,12 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let win: BrowserWindow | null = null
-let mainServer: Server | null = null
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
 async function createWindow() {
-  // 调试信息：打印所有相关环境变量
-  console.log('=== Electron Main Process Debug Info ===')
-  console.log('NODE_ENV:', process.env.NODE_ENV)
-  console.log('ELECTRON:', process.env.ELECTRON)
-  console.log('VITE_DEV_SERVER_URL:', process.env.VITE_DEV_SERVER_URL)
-  console.log('VITE_DEV_SERVER_URL (exported):', VITE_DEV_SERVER_URL)
-  console.log('APP_ROOT:', process.env.APP_ROOT)
-  console.log('VITE_PUBLIC:', process.env.VITE_PUBLIC)
-  console.log('========================================')
-
   win = new BrowserWindow({
-    title: 'Big Brother Studio',
+    title: '缝合怪',
     icon: path.join(process.env.VITE_PUBLIC, 'app-icon.png'),
     width: 1200,
     height: 800,
@@ -110,16 +95,10 @@ async function createWindow() {
     },
   })
 
-
-
   if (VITE_DEV_SERVER_URL) { // #298
     log('VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
-
     // 添加错误处理和重试机制
     win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-      console.error(`Failed to load URL: ${validatedURL}`)
-      console.error(`Error code: ${errorCode}, Description: ${errorDescription}`)
-
       // 如果是开发服务器连接失败，尝试重新加载
       if (validatedURL === VITE_DEV_SERVER_URL) {
         console.log('Retrying to load development server...')
@@ -128,7 +107,6 @@ async function createWindow() {
         }, 2000) // 2秒后重试
       }
     })
-
     win.loadURL(VITE_DEV_SERVER_URL)
     // Open devTool if the app is not packaged
     win.webContents.openDevTools()
@@ -154,41 +132,15 @@ async function createWindow() {
   })
 
   registerIpc(win, app)
-  // win.webContents.on('will-navigate', (event, url) => { }) #344
 }
 console.log('📱 Registering app.whenReady() callback...')
 app.whenReady().then(async () => {
   console.log('✅ Electron app is ready! Creating window...')
   await createWindow()
-
-  // 启动 MCP 服务器
-  try {
-    mainServer = new Server({
-      port: parseInt(process.env.MCP_SERVER_PORT || '3002'),
-      enableCors: true,
-      streamingEnabled: true,
-    }, win as BrowserWindow)
-    await mainServer.start()
-    console.log('✅ MCP Server started successfully')
-  } catch (error) {
-    console.error('❌ Failed to start MCP Server:', error)
-  }
 })
 
 app.on('window-all-closed', async () => {
   win = null
-
-  // 停止 MCP 服务器
-  if (mainServer) {
-    try {
-      await mainServer.stop()
-      console.log('✅ Server stopped')
-    } catch (error) {
-      console.error('❌ Error stopping Server:', error)
-    }
-    mainServer = null
-  }
-
   if (process.platform !== 'darwin') {app.quit()}
 })
 

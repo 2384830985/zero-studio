@@ -5,6 +5,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { performWebSearch } from './utils/webSearch'
+import {IpcChannel} from './IpcChannel'
+import {Chat} from './server/routes/chat'
+import {AIGCService} from './server/services/AIGCService'
+import {MCPServerTools} from './server/routes/MCPServerTools'
 
 // 在 ES 模块中正确获取 __dirname
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -15,8 +19,10 @@ const APP_ROOT = path.join(__dirname, '../..')
 const RENDERER_DIST = path.join(APP_ROOT, 'dist')
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
+const aigcService = new AIGCService()
 
 export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
+  const chat = new Chat(mainWindow, aigcService)
 
   // New window example arg: new windows url
   ipcMain.handle('open-win', (_, arg) => {
@@ -34,6 +40,14 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
       childWindow.loadFile(indexHtml, { hash: arg })
     }
   })
+  // 注册 mcp 连接
+  ipcMain.handle(IpcChannel.CONNECT_MCP, MCPServerTools.handleConnectMCPSend)
+  // chat send
+  ipcMain.handle(IpcChannel.CHAT_SEND, chat.handleChatSend.bind(chat))
+  // chat ReAct
+  ipcMain.handle(IpcChannel.CHAT_REACT, chat.handleChatReactSend.bind(chat))
+  // chat Plan 计划模式
+  ipcMain.handle(IpcChannel.CHAT_PLAN, chat.handleChatPlanSend.bind(chat))
 
   // 执行环境管理相关的 IPC 处理程序
 
