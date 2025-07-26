@@ -39,7 +39,6 @@ interface IStreamingParams {
   role?: CommunicationRole,
   timestamp?: number
   content?: string
-  isComplete?: boolean
   message?: Partial<IStreamingParams>
   metadata?: IMessageMetadata
 }
@@ -62,6 +61,7 @@ export class Communication {
   setMessage (messageParams: Partial<IStreamingParams>) {
     // 结束发送工具调用信息
     this.win.webContents.send(CommunicationType.MESSAGE, {
+      timestamp: messageParams?.timestamp || Date.now(),
       ...messageParams,
     })
   }

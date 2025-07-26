@@ -32,17 +32,8 @@ export class Chat {
    * @private
    */
   async handleChatReactSend(_, object) {
-    const response = JSON.parse(object)
-    // oldMessage: MCPMessage[]
-    // content: string
-    // conversationId: string
-    // metadata: {
-    //   model: string,
-    //   setting: AssistantSettings,
-    //   service: IChatServiceConfig,
-    // }
-    // oldMessage
-    const { content, metadata = {} } = response
+    const req = JSON.parse(object)
+    const { content, metadata = {}, conversationId = '' } = req
     if (!content) {
       return {
         code: 400,
@@ -51,20 +42,15 @@ export class Chat {
         },
       }
     }
-    const conversationId = generateId()
-    // 创建用户消息
-    const userMessage: MCPMessage = {
-      id: conversationId,
-      role: CommunicationRole.USER,
-      content: content.trim(),
-      timestamp: Date.now(),
-      metadata,
-    }
-
     // 广播用户消息
     this.communication.setMessage({
-      conversationId: conversationId,
-      message: userMessage,
+      conversationId,
+      message: {
+        id: generateId(),
+        role: CommunicationRole.USER,
+        content: content.trim(),
+        metadata,
+      },
     })
 
     const reAct = new ReActService(this.win)
@@ -74,35 +60,28 @@ export class Chat {
       console.log(`[${step.type}] ${step.content}`)
       // 发送完整消息
       this.communication.setMessage({
-        isComplete: false,
         content: '',
-        metadata: undefined,
         conversationId: conversationId,
         message: {
           id: generateId(),
           role: CommunicationRole.ASSISTANT,
           content: step.content,
-          timestamp: Date.now(),
           metadata,
-          isComplete: true,
         },
       })
     }
 
     const result = await reAct.reactAgent?.execute(content, stepCallback) as string
-    const assistantMessageId = generateId()
     console.log('最终结果:', result)
 
     // 发送完整消息
     this.communication.setMessage({
       conversationId: conversationId,
       message: {
-        id: assistantMessageId,
+        id: generateId(),
         role: CommunicationRole.ASSISTANT,
         content: result,
-        timestamp: Date.now(),
         metadata,
-        isComplete: true,
       },
     })
   }
@@ -191,20 +170,17 @@ export class Chat {
         }
       }
 
-      const convId = conversationId || generateId()
-
       // 创建用户消息
       const userMessage: MCPMessage = {
         id: generateId(),
         role: CommunicationRole.USER,
         content: content.trim(),
-        timestamp: Date.now(),
         metadata,
       }
 
       // 广播用户消息
       this.communication.setMessage({
-        conversationId: convId,
+        conversationId,
         message: userMessage,
       })
 
@@ -223,11 +199,11 @@ export class Chat {
       })
 
       // 生成 AI 回复
-      this.generateMCPResponse(langchainMessages, convId, enabledMCPServers, metadata)
+      this.generateMCPResponse(langchainMessages, conversationId, enabledMCPServers, metadata)
 
       return {
         success: true,
-        conversationId: convId,
+        conversationId,
         messageId: userMessage.id,
       }
     } catch (error) {
@@ -242,7 +218,6 @@ export class Chat {
   }
 
   private async generateMCPResponse(userMessage: any[], conversationId: string, enabledMCPServers: EnabledMCPServer[], metadata: any) {
-    const assistantMessageId = generateId()
     let toolCalls: any[] = []
     let toolResults: any[] = []
 
@@ -298,7 +273,7 @@ export class Chat {
                 fullContent += chunk.content
                 this.communication.sendStreaming({
                   conversationId,
-                  messageId: assistantMessageId,
+                  messageId: generateId(),
                   role: CommunicationRole.ASSISTANT,
                   content: fullContent,
                   metadata: {
@@ -325,55 +300,43 @@ export class Chat {
         }
 
         if (fullContent) {
-          // 创建完整的助手消息，包含工具调用信息
-          const assistantMessage: MCPMessage = {
-            id: assistantMessageId,
-            role: CommunicationRole.ASSISTANT,
-            content: fullContent,
-            timestamp: Date.now(),
-            metadata: {
-              model: metadata.model,
-              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-              toolResults: toolResults.length > 0 ? toolResults : undefined,
-            },
-          }
-
           // 发送完整消息
           this.communication.setMessage({
             conversationId,
             message: {
-              ...assistantMessage,
-              isComplete: true,
+              id: generateId(),
+              role: CommunicationRole.ASSISTANT,
+              content: fullContent,
+              metadata: {
+                model: metadata.model,
+                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+                toolResults: toolResults.length > 0 ? toolResults : undefined,
+              },
             },
           })
         }
       } else {
         // 回退到模拟响应
-        this.generateMockMCPResponse(conversationId, assistantMessageId)
+        this.generateMockMCPResponse(conversationId)
       }
     } catch (error) {
       console.error('[Chat Routes] Error in generateMCPResponse:', error)
       // 回退到模拟响应
-      this.generateMockMCPResponse(conversationId, assistantMessageId)
+      this.generateMockMCPResponse(conversationId)
     }
   }
 
-  private generateMockMCPResponse(conversationId: string, assistantMessageId?: string) {
-    const assistantMessage: MCPMessage = {
-      id: assistantMessageId || generateId(),
-      role: CommunicationRole.ASSISTANT,
-      content: '请求出现错误，请重新尝试或者联系开发同学',
-      timestamp: Date.now(),
-      metadata: {
-        model: 'default',
-      },
-    }
+  private generateMockMCPResponse(conversationId: string) {
     // 发送完整消息
     this.communication.setMessage({
       conversationId,
       message: {
-        ...assistantMessage,
-        isComplete: true,
+        id: generateId(),
+        role: CommunicationRole.ASSISTANT,
+        content: '请求出现错误，请重新尝试或者联系开发同学',
+        metadata: {
+          model: 'default',
+        },
       },
     })
   }

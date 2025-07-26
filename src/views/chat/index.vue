@@ -259,7 +259,7 @@ const handleSendMessage = async (content: string) => {
       },
     })
 
-    if (!response.conversationId) {
+    if (!response) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 

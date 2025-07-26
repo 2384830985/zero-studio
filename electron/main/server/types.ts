@@ -11,7 +11,7 @@ export interface MCPMessage {
   id: string
   role: CommunicationRole
   content: string
-  timestamp: number
+  timestamp?: number
   metadata?: IMessageMetadata
 }
 
