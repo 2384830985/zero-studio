@@ -1,9 +1,26 @@
-import {AssistantSettings} from '@/store'
+import { AssistantSettings } from '@/store'
+import {CommunicationRole, Exhibition} from '@/views/chat/constant'
+
+interface ICard {
+  type: Exhibition
+  content: string
+  searchContent?: string
+  // MCP 工具调用相关信息
+  toolCalls?: MCPToolCall[]
+  toolResults?: MCPToolResult[]
+}
+
+interface IReturnObject {
+  cardList: Array<ICard>
+}
 
 export interface MCPMessage {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  role: CommunicationRole
+  // 请求的数据
   content: string
+  // 展示的数据
+  contentLimited?: IReturnObject
   timestamp: number
   metadata?: {
     model?: string
@@ -17,7 +34,7 @@ export interface MCPMessage {
   }
 }
 
-export interface MCPConversation {
+export interface Conversation {
   id: string
   title: string
   messages: MCPMessage[]

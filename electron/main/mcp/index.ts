@@ -1,4 +1,5 @@
 import {BrowserWindow} from 'electron'
+import {IMessageMetadata} from '../server/types'
 
 type IObjAny = {
   [key: string]: any
@@ -31,26 +32,16 @@ export interface IMCPToolResult {
   executionTime: number
 }
 
-export interface IMetadata {
-  stream: boolean
-  model: string
-  toolCalls: IMCPToolCall[]
-  toolResults: IMCPToolResult[]
-}
-
 interface IStreamingParams {
-  id: string
-  conversationId: string
-  messageId: string
-  role: CommunicationRole,
-  timestamp: number
-  content: string
-  isComplete: boolean
-  metadata: Partial<IMetadata>
-}
-
-interface IMessageParams extends Partial<IStreamingParams>{
-  message?: IStreamingParams
+  id?: string
+  conversationId?: string
+  messageId?: string
+  role?: CommunicationRole,
+  timestamp?: number
+  content?: string
+  isComplete?: boolean
+  message?: Partial<IStreamingParams>
+  metadata?: IMessageMetadata
 }
 
 export class Communication {
@@ -68,7 +59,7 @@ export class Communication {
     })
   }
 
-  setMessage (messageParams: Partial<IMessageParams>) {
+  setMessage (messageParams: Partial<IStreamingParams>) {
     // 结束发送工具调用信息
     this.win.webContents.send(CommunicationType.MESSAGE, {
       ...messageParams,

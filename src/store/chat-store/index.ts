@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia'
-import type {MCPMessage, ModelInfo, ModelService, MCPConversation} from '@/views/chat/chat.type.ts'
+import {defineStore} from 'pinia'
+import type {Conversation, MCPMessage, ModelInfo, ModelService} from '@/views/chat/chat.type.ts'
 
 export enum USE_PLAN_MODE {
   // 问答模式
@@ -30,7 +30,7 @@ interface IIseChatStore {
   // 当前活跃的对话ID
   currentConversationId: string,
   // 所有对话的映射表
-  conversations: Record<string, MCPConversation>,
+  conversations: Record<string, Conversation>,
   // 对话列表（按时间排序）
   conversationList: string[],
   selectedModel?: {
@@ -119,7 +119,7 @@ export const useChatStore = defineStore('chat', {
       const conversationId = generateConversationId()
       const now = Date.now()
 
-      const conversation: MCPConversation = {
+      this.conversations[conversationId] = {
         id: conversationId,
         title: title || '新对话',
         messages: [],
@@ -127,8 +127,6 @@ export const useChatStore = defineStore('chat', {
         lastActivity: now,
         createdAt: now,
       }
-
-      this.conversations[conversationId] = conversation
       this.conversationList.unshift(conversationId)
       this.currentConversationId = conversationId
 

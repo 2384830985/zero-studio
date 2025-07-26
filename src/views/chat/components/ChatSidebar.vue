@@ -107,11 +107,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { PlusOutlined, DeleteOutlined, MessageOutlined, SettingOutlined } from '@ant-design/icons-vue'
-import type { MCPConversation } from '../chat.type'
+import type { Conversation } from '../chat.type'
 import ChatSettings from './ChatSettings.vue'
 
 interface Props {
-  conversations: MCPConversation[]
+  conversations: Conversation[]
   currentConversationId: string
 }
 

@@ -115,10 +115,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message as antMessage } from 'ant-design-vue'
-import { USE_PLAN_MODE, useChatStore, useMCPServiceStore, useRoleStore } from '@/store'
+import { USE_PLAN_MODE, useChatStore, useRoleStore } from '@/store'
 import type { MCPMessage, MCPServerStats } from './chat.type'
 import type { SearchResult } from '@/types/webSearch'
-import {ConnectReActApi, PostChatSendApi, PostPlanCreateApi} from '@/api/chatApi.ts'
+import { ConnectReActApi, PostChatSendApi, PostPlanCreateApi } from '@/api/chatApi'
 import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
 import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
@@ -127,9 +127,9 @@ import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
 import ChatArea from '@/views/chat/components/ChatArea.vue'
 import WebSearchModal from '@/views/chat/components/WebSearchModal.vue'
 import SearchResultsPanel from '@/views/chat/components/SearchResultsPanel.vue'
+import { CommunicationRole } from '@/views/chat/constant'
 
 const chatStore = useChatStore()
-const mcpServiceStore = useMCPServiceStore()
 const roleStore = useRoleStore()
 
 // MCP 相关数据
@@ -156,10 +156,6 @@ const chatAreaRef = ref<InstanceType<typeof ChatArea>>()
 const isConnected = computed(() => true)
 
 const usePlanMode = computed(() => chatStore.usePlanMode)
-
-// 获取启用的MCP服务器
-const enabledMCPServers = computed(() => mcpServiceStore.enabledMCPServers)
-
 
 // 滚动到底部
 const scrollToBottom = () => {
@@ -220,15 +216,16 @@ const handleSendMessage = async (content: string) => {
     let messagesToSend = [...messages.value]
     if (selectedRole && selectedRole.systemPrompt) {
       // 检查是否已经有系统消息，如果没有则添加
-      const hasSystemMessage = messagesToSend.some(msg => msg.role === 'system')
+      const hasSystemMessage = messagesToSend.some(msg => msg.role === CommunicationRole.SYSTEM)
       if (!hasSystemMessage) {
         const systemMessage: MCPMessage = {
           id: `system_${Date.now()}`,
-          role: 'system',
+          role: CommunicationRole.SYSTEM,
           content: selectedRole.systemPrompt,
           timestamp: Date.now(),
         }
-        messagesToSend = [systemMessage, ...messagesToSend]
+
+        messagesToSend = [systemMessage, ...messagesToSend.map(v => ({...v}))]
       }
     }
 
@@ -249,9 +246,10 @@ const handleSendMessage = async (content: string) => {
       content,
       conversationId: currentConversationId.value,
       metadata: {
-        stream: true,
         model: selectedModel.value.model.name,
-        settings: chatStore.assistantSettings,
+        setting: {
+          ...chatStore.assistantSettings,
+        },
         service: {
           id: selectedModel.value.service.id,
           name: selectedModel.value.service.name,
@@ -259,9 +257,6 @@ const handleSendMessage = async (content: string) => {
           apiKey: selectedModel.value.service.apiKey,
         },
       },
-      enabledMCPServers: enabledMCPServers.value.map(item => {
-        return {...item}
-      }).filter(item => selectedMCPServersObj[item.id]),
     })
 
     if (!response.conversationId) {

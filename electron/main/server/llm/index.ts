@@ -1,8 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai'
 // import { ChatAlibabaTongyi } from '@langchain/community/chat_models/alibaba_tongyi'
 
-interface IMetadata {
-  stream: boolean;
+export interface IMetadata {
   model: string
   setting: {
     modelTemperature: number
@@ -44,6 +43,6 @@ export const getModel = (metadata: IMetadata) => {
     model: metadata.model, // 使用映射后的模型名称
     temperature: metadata?.setting?.modelTemperature || 0,
     maxTokens: metadata?.setting?.maxTokens || 2000,
-    streaming: metadata.stream,
+    streaming: metadata.setting?.streamOutput,
   })
 }

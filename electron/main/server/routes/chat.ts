@@ -3,11 +3,11 @@ import {BrowserWindow} from 'electron'
 import { MCPMessage } from '../types'
 import { AIGCService } from '../services/AIGCService'
 import {AIMessage, HumanMessage, SystemMessage} from '@langchain/core/messages'
-import { generateId, generateMockMCPResponseContent } from '../utils/helpers'
+import { generateId } from '../utils/helpers'
 import { EnabledMCPServer } from '../../mcp/StdioMcpServerToFunction'
-import {Communication, CommunicationRole} from '../../mcp'
-import {ReActService} from '../services/ReActService'
-import {PlanService} from '../services/PlanService'
+import { Communication, CommunicationRole } from '../../mcp'
+import { ReActService } from '../services/ReActService'
+import { PlanService } from '../services/PlanService'
 
 export class Chat {
   private aigcService: AIGCService
@@ -33,6 +33,14 @@ export class Chat {
    */
   async handleChatReactSend(_, object) {
     const response = JSON.parse(object)
+    // oldMessage: MCPMessage[]
+    // content: string
+    // conversationId: string
+    // metadata: {
+    //   model: string,
+    //   setting: AssistantSettings,
+    //   service: IChatServiceConfig,
+    // }
     // oldMessage
     const { content, metadata = {} } = response
     if (!content) {
@@ -75,10 +83,7 @@ export class Chat {
           role: CommunicationRole.ASSISTANT,
           content: step.content,
           timestamp: Date.now(),
-          metadata: {
-            model: metadata.model,
-            stream: true,
-          },
+          metadata,
           isComplete: true,
         },
       })
@@ -96,10 +101,7 @@ export class Chat {
         role: CommunicationRole.ASSISTANT,
         content: result,
         timestamp: Date.now(),
-        metadata: {
-          model: metadata.model,
-          stream: true,
-        },
+        metadata,
         isComplete: true,
       },
     })
@@ -239,7 +241,7 @@ export class Chat {
     }
   }
 
-  private async generateMCPResponse(userMessage: (HumanMessage | AIMessage)[], conversationId: string, enabledMCPServers: EnabledMCPServer[], metadata: any) {
+  private async generateMCPResponse(userMessage: any[], conversationId: string, enabledMCPServers: EnabledMCPServer[], metadata: any) {
     const assistantMessageId = generateId()
     let toolCalls: any[] = []
     let toolResults: any[] = []
@@ -331,7 +333,6 @@ export class Chat {
             timestamp: Date.now(),
             metadata: {
               model: metadata.model,
-              stream: true,
               toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
               toolResults: toolResults.length > 0 ? toolResults : undefined,
             },
@@ -348,61 +349,32 @@ export class Chat {
         }
       } else {
         // 回退到模拟响应
-        this.generateMockMCPResponse(userMessage, conversationId, assistantMessageId)
+        this.generateMockMCPResponse(conversationId, assistantMessageId)
       }
     } catch (error) {
       console.error('[Chat Routes] Error in generateMCPResponse:', error)
       // 回退到模拟响应
-      this.generateMockMCPResponse(userMessage, conversationId, assistantMessageId)
+      this.generateMockMCPResponse(conversationId, assistantMessageId)
     }
   }
 
-  private generateMockMCPResponse(userMessage: MCPMessage, conversationId: string, assistantMessageId?: string) {
-    const fullResponse = generateMockMCPResponseContent(userMessage.content)
-
+  private generateMockMCPResponse(conversationId: string, assistantMessageId?: string) {
     const assistantMessage: MCPMessage = {
       id: assistantMessageId || generateId(),
       role: CommunicationRole.ASSISTANT,
-      content: fullResponse,
+      content: '请求出现错误，请重新尝试或者联系开发同学',
       timestamp: Date.now(),
       metadata: {
-        model: 'mcp-default',
-        stream: false,
+        model: 'default',
       },
     }
-
-    // 模拟流式回复
-    this.simulateStreamingResponse(assistantMessage, conversationId)
-  }
-
-  private simulateStreamingResponse(message: MCPMessage, conversationId: string) {
-    const words = message.content.split('')
-    let currentContent = ''
-    let index = 0
-
-    const streamInterval = setInterval(() => {
-      if (index < words.length) {
-        currentContent += words[index]
-        // 广播部分内容
-        this.communication.sendStreaming({
-          conversationId,
-          messageId: message.id,
-          role: CommunicationRole.ASSISTANT,
-          content: currentContent,
-          timestamp: message.timestamp,
-        })
-        index++
-      } else {
-        // 发送完整消息
-        this.communication.setMessage({
-          conversationId,
-          message: {
-            ...message,
-            isComplete: true,
-          },
-        })
-        clearInterval(streamInterval)
-      }
-    }, 30) // 30ms 间隔，更快的打字效果
+    // 发送完整消息
+    this.communication.setMessage({
+      conversationId,
+      message: {
+        ...assistantMessage,
+        isComplete: true,
+      },
+    })
   }
 }

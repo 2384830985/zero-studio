@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { message } from 'ant-design-vue'
-import {ConnectMCPApi} from '@/api/chatApi.ts'
+import { ConnectMCPApi } from '@/api/chatApi'
 
 // MCP 工具定义
 export interface MCPTool {

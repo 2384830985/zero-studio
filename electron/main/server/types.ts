@@ -1,25 +1,18 @@
+import { CommunicationRole } from '../mcp'
+import {IMetadata} from './llm'
+
+export type IMessageMetadata = Partial<IMetadata> & {
+  // MCP 工具调用相关信息
+  toolCalls?: MCPToolCall[] | undefined
+  toolResults?: MCPToolResult[] | undefined
+}
+
 export interface MCPMessage {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  role: CommunicationRole
   content: string
   timestamp: number
-  metadata?: {
-    model?: string
-    temperature?: number
-    maxTokens?: number
-    stream?: boolean
-    planId?: string
-    error?: boolean
-    executionSummary?: {
-      totalSteps: number
-      completedSteps: number
-      failedSteps: number
-      status: string
-    }
-    // MCP 工具调用相关信息
-    toolCalls?: MCPToolCall[]
-    toolResults?: MCPToolResult[]
-  }
+  metadata?: IMessageMetadata
 }
 
 export interface MCPStreamChunk {

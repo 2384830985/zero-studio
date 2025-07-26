@@ -122,7 +122,7 @@ export class AIGCService {
       }
 
       // 没有工具调用，直接返回响应
-      if (metadata.settings.streamOutput) {
+      if (metadata.setting.streamOutput) {
         const responseStream = await llmWithTools.stream(messages)
         return {
           stream: responseStream,
@@ -165,7 +165,7 @@ export class AIGCService {
     }
 
     try {
-      if (metadata.settings.streamOutput) {
+      if (metadata.setting.streamOutput) {
         const stream = getModel(metadata).stream(
           messages,
         )
