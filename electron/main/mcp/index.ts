@@ -1,5 +1,6 @@
 import {BrowserWindow} from 'electron'
 import {IMessageMetadata} from '../server/types'
+import {IExhibitionCon} from '../server/utils'
 
 type IObjAny = {
   [key: string]: any
@@ -37,6 +38,9 @@ interface IStreamingParams {
   conversationId?: string
   messageId?: string
   role?: CommunicationRole,
+  contentLimited?: {
+    cardList?: IExhibitionCon[]
+  },
   timestamp?: number
   content?: string
   message?: Partial<IStreamingParams>

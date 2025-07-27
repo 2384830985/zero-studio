@@ -1,13 +1,13 @@
 import {BrowserWindow} from 'electron'
 // import { log } from 'node:console'
-import { MCPMessage } from '../types'
+import {IMessageMetadata, MCPMessage} from '../types'
 import { AIGCService } from '../services/AIGCService'
 import {AIMessage, HumanMessage, SystemMessage} from '@langchain/core/messages'
 import { generateId } from '../utils/helpers'
-import { EnabledMCPServer } from '../../mcp/StdioMcpServerToFunction'
 import { Communication, CommunicationRole } from '../../mcp'
 import { ReActService } from '../services/ReActService'
 import { PlanService } from '../services/PlanService'
+import {BaseMessage} from '@langchain/core/dist/messages/base'
 
 export class Chat {
   private aigcService: AIGCService
@@ -160,7 +160,7 @@ export class Chat {
   async handleChatSend(_, object) {
     try {
       const response = JSON.parse(object)
-      const { content, conversationId, metadata = {}, enabledMCPServers, oldMessage } = response
+      const { content, conversationId, metadata = {}, oldMessage } = response
       if (!content) {
         return {
           code: 400,
@@ -199,7 +199,7 @@ export class Chat {
       })
 
       // 生成 AI 回复
-      this.generateMCPResponse(langchainMessages, conversationId, enabledMCPServers, metadata)
+      this.generateMCPResponse(langchainMessages, conversationId, metadata)
 
       return {
         success: true,
@@ -217,48 +217,28 @@ export class Chat {
     }
   }
 
-  private async generateMCPResponse(userMessage: any[], conversationId: string, enabledMCPServers: EnabledMCPServer[], metadata: any) {
-    let toolCalls: any[] = []
-    let toolResults: any[] = []
-
+  private async generateMCPResponse(userMessage: BaseMessage[], conversationId: string, metadata: IMessageMetadata) {
     try {
       if (metadata && metadata.model) {
         // 获取对话历史，构建完整的消息上下文
         console.log('[Chat Routes] Calling AIGC API for MCP chat...')
+        const sendStreaming = (content: string) => {
+          this.communication.sendStreaming({
+            conversationId,
+            message: {
+              id: generateId(),
+              role: CommunicationRole.ASSISTANT,
+              content: content,
+              metadata,
+            },
+          })
+        }
 
-        // 定义回调函数来实时发送工具调用信息
-        // const onToolCall = (toolCall: any) => {
-        //   toolCalls.push(toolCall)
-        //   // 实时发送工具调用信息
-        //   this.communication.sendStreaming({
-        //     conversationId,
-        //     messageId: assistantMessageId,
-        //     role: CommunicationRole.ASSISTANT,
-        //     metadata: {
-        //       toolCalls: [toolCall],
-        //     },
-        //   })
-        // }
-
-        // const onToolResult = (toolResult: any) => {
-        //   toolResults.push(toolResult)
-        //   // 实时发送工具结果信息
-        //   this.communication.sendStreaming({
-        //     conversationId,
-        //     messageId: assistantMessageId,
-        //     role: CommunicationRole.ASSISTANT,
-        //     metadata: {
-        //       toolCalls,
-        //       toolResults: [toolResult],
-        //     },
-        //   })
-        // }
         // 调用 AIGC API（可能包含工具调用）
         const response = await this.aigcService.callAIGC(
           userMessage,
           metadata,
-          // onToolCall,
-          // onToolResult,
+          sendStreaming,
         )
 
         let fullContent = ''
@@ -276,24 +256,13 @@ export class Chat {
                   messageId: generateId(),
                   role: CommunicationRole.ASSISTANT,
                   content: fullContent,
-                  metadata: {
-                    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-                    toolResults: toolResults.length > 0 ? toolResults : undefined,
-                  },
+                  metadata,
                 })
               }
             }
           } else if (response.content) {
             // 非流式响应
             fullContent = response.content
-          }
-
-          // 更新工具调用信息
-          if (response.toolCalls) {
-            toolCalls = response.toolCalls
-          }
-          if (response.toolResults) {
-            toolResults = response.toolResults
           }
         } else if (typeof response === 'string') {
           fullContent = response
@@ -307,10 +276,13 @@ export class Chat {
               id: generateId(),
               role: CommunicationRole.ASSISTANT,
               content: fullContent,
+              contentLimited: {
+                cardList: response?.cardList?.length > 0 ? response?.cardList : [],
+              },
               metadata: {
                 model: metadata.model,
-                toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-                toolResults: toolResults.length > 0 ? toolResults : undefined,
+                toolCalls: response?.toolCalls?.length > 0 ? response?.toolCalls : undefined,
+                toolResults: response?.toolResults?.length > 0 ? response?.toolResults : undefined,
               },
             },
           })

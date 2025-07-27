@@ -2,7 +2,10 @@ import {AIMessage, HumanMessage, ToolMessage} from '@langchain/core/messages'
 // import {DynamicTool} from '@langchain/core/tools'
 // import {EnabledMCPServer, StdioMcpClientToFunction} from '../../mcp/StdioMcpServerToFunction'
 import {McpServer} from '../../mcp/mcp-server'
-import {getModel} from '../llm'
+import {getModel, IMetadata} from '../llm'
+import {IMessageMetadata} from '../types'
+import {BaseMessage} from '@langchain/core/dist/messages/base'
+import {getExhibitionTEXT, getExhibitionTOOLS, IExhibitionCon} from '../utils'
 
 /**
  * AIGC服务类
@@ -15,6 +18,7 @@ export class AIGCService {
   async handleToolCallingWithLangchain(
     messages: any[],
     metadata: any,
+    sendStreaming: (content: string) => void,
   ): Promise<any> {
     try {
       // 创建 实例，使用AIGC 配置
@@ -27,11 +31,16 @@ export class AIGCService {
       const llmWithTools = llm.bindTools(McpServer.langchainTools)
       // console.log('[AIGC Service] 绑定工具到 LLM', llmWithTools)
       console.log('[AIGC Service] McpServer.langchainTools.length', McpServer.langchainTools.length)
-      // console.log('langchainMessages', langchainMessages)
-      console.log('messages', messages)
+
+      const cardList: IExhibitionCon[] = []
 
       // 调用 LLM
       const response = await llmWithTools.invoke(messages)
+
+      cardList.push(getExhibitionTEXT((response?.content || '') as string))
+
+      // 先返回数据流
+      sendStreaming(response.content as string)
 
       // 处理工具调用
       if (response.tool_calls && response.tool_calls.length > 0) {
@@ -65,6 +74,12 @@ export class AIGCService {
               result: toolResult,
               executionTime,
             }
+
+            cardList.push(getExhibitionTOOLS({
+              toolCalls: [mcpToolCall],
+              toolResults: [mcpToolResult],
+            }))
+
             toolResults.push(mcpToolResult)
 
             toolMessages.push(new ToolMessage({
@@ -112,12 +127,14 @@ export class AIGCService {
 
         // 如果是流式响应，返回流式结果
         const finalStream = await llm.invoke(finalMessages)
-        console.log('1111111', finalStream)
-        console.log('2222222', finalMessages)
+
+        cardList.push(getExhibitionTEXT(finalStream.content as string))
+
         return {
           content: `${response.content}\n${finalStream.content}`,
           toolCalls,
           toolResults,
+          cardList,
         }
       }
 
@@ -134,8 +151,7 @@ export class AIGCService {
       }
     } catch (error) {
       console.error('[AIGC Service] Error in langchain tool calling:', error)
-      console.log('[AIGC Service] Falling back to direct API call due to langchain error')
-      return this.callAIGC(messages,metadata)
+      return this.callAIGC(messages,metadata, () => undefined)
     }
   }
 
@@ -143,8 +159,9 @@ export class AIGCService {
    * 调用AIGC API
    */
   async callAIGC(
-    messages: any[],
-    metadata: any,
+    messages: BaseMessage[],
+    metadata: IMessageMetadata,
+    sendStreaming: (content: string) => void,
   ): Promise<any> {
     if (!metadata.model) {
       throw new Error('model 不能为空')
@@ -157,7 +174,7 @@ export class AIGCService {
       McpServer?.langchainTools?.length > 0
     ) {
       try {
-        return await this.handleToolCallingWithLangchain(messages, metadata)
+        return await this.handleToolCallingWithLangchain(messages, metadata, sendStreaming)
       } catch (error) {
         console.error('[AIGC Service] Tool calling failed, falling back to direct API call:', error)
         // 继续执行直接API调用
@@ -165,15 +182,15 @@ export class AIGCService {
     }
 
     try {
-      if (metadata.setting.streamOutput) {
-        const stream = getModel(metadata).stream(
+      if (metadata && metadata.setting && metadata?.setting.streamOutput) {
+        const stream = getModel(metadata as IMetadata).stream(
           messages,
         )
         return {
           stream: await stream,
         }
       } else {
-        const res = await getModel(metadata).invoke(
+        const res = await getModel(metadata as IMetadata).invoke(
           messages,
         )
         return {

@@ -3,6 +3,7 @@ import { MCPMessage } from '../types'
 import { generateId } from '../utils/helpers'
 import { BrowserWindow } from 'electron'
 import {McpServer} from '../../mcp/mcp-server'
+import {CommunicationRole} from '../../mcp'
 
 interface ReActSession {
   id: string
@@ -157,7 +158,7 @@ export class ReActService {
       // 发送最终消息
       const finalMessage: MCPMessage = {
         id: assistantMessageId,
-        role: 'assistant',
+        role: CommunicationRole.ASSISTANT,
         content: currentContent,
         timestamp: Date.now(),
         metadata: {
@@ -182,7 +183,7 @@ export class ReActService {
 
       const errorMessage: MCPMessage = {
         id: generateId(),
-        role: 'assistant',
+        role: CommunicationRole.ASSISTANT,
         content: `❌ **ReAct 会话失败**: ${session.error}`,
         timestamp: Date.now(),
         metadata: { ...metadata, sessionId, error: true },

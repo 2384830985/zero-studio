@@ -1,5 +1,6 @@
 import {defineStore} from 'pinia'
 import type {Conversation, MCPMessage, ModelInfo, ModelService} from '@/views/chat/chat.type.ts'
+import {CommunicationRole} from '@/views/chat/constant'
 
 export enum USE_PLAN_MODE {
   // 问答模式
@@ -192,7 +193,7 @@ export const useChatStore = defineStore('chat', {
         conversation.lastActivity = Date.now()
 
         // 如果是第一条用户消息，可以用它来生成对话标题
-        if (conversation.messages.length === 1 && message.role === 'user') {
+        if (conversation.messages.length === 1 && message.role === CommunicationRole.USER) {
           const title = message.content.length > 30
             ? message.content.substring(0, 30) + '...'
             : message.content

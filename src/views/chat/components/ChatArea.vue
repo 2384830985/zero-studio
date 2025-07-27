@@ -26,31 +26,46 @@
         v-for="message in messages"
         :key="message.id"
         class="flex"
-        :class="message.role === 'user' ? 'justify-end pr-2' : 'justify-start pl-2'"
+        :class="message.role === CommunicationRole.USER ? 'justify-end pr-2' : 'justify-start pl-2'"
       >
         <div
           :class="[
             'max-w-[70%] rounded-2xl px-4 py-3',
-            message.role === 'user'
+            message.role === CommunicationRole.USER
               ? 'bg-blue-500 text-white mr-2'
               : 'bg-white text-gray-800 shadow-sm border border-gray-200 ml-2'
           ]"
         >
+          <template
+            v-if="!!message?.contentLimited?.cardList?.length"
+          >
+            <template
+              v-for="card in message?.contentLimited?.cardList"
+              :key="`${card.type}_${Date.now()}`"
+            >
+              <!-- MCP 工具调用显示 -->
+              <MCPToolDisplay
+                v-if="card.type === Exhibition.TOOLS"
+                :tool-calls="card.toolCalls"
+                :tool-results="card.toolResults"
+                class="mb-3"
+              />
+              <div
+                v-else
+                class="text-sm leading-relaxed mb-2"
+                v-html="formatMessage(card.content)"
+              />
+            </template>
+          </template>
           <div
+            v-else
             class="text-sm leading-relaxed mb-2"
             v-html="formatMessage(message.content)"
-          />
-          <!-- MCP 工具调用显示 -->
-          <MCPToolDisplay
-            v-if="message.metadata?.toolCalls || message.metadata?.toolResults"
-            :tool-calls="message.metadata?.toolCalls"
-            :tool-results="message.metadata?.toolResults"
-            class="mb-3"
           />
           <div
             :class="[
               'text-xs mt-2 opacity-70',
-              message.role === 'user' ? 'text-right text-blue-100' : 'text-left text-gray-500'
+              message.role === CommunicationRole.USER ? 'text-right text-blue-100' : 'text-left text-gray-500'
             ]"
           >
             {{ formatTime(message.timestamp) }}
@@ -166,25 +181,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, defineProps, defineEmits } from 'vue'
-import { Modal } from 'ant-design-vue'
+import {defineEmits, defineProps, nextTick, ref} from 'vue'
+import {Modal} from 'ant-design-vue'
 import {
-  RobotOutlined,
+  ArrowUpOutlined,
+  GlobalOutlined,
+  LinkOutlined,
   LoadingOutlined,
   PaperClipOutlined,
-  LinkOutlined,
-  GlobalOutlined,
-  ArrowUpOutlined,
+  RobotOutlined,
   SearchOutlined,
 } from '@ant-design/icons-vue'
 import ExecutionEnvironment from '@/components/common/ExecutionEnvironment.vue'
 import KnowledgeBaseSelector from '@/components/common/KnowledgeBaseSelector.vue'
 import MCPToolDisplay from './MCPToolDisplay.vue'
-import type { MCPMessage } from '../chat.type'
+import type {MCPMessage} from '../chat.type'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import mermaid from 'mermaid'
+import {CommunicationRole, Exhibition} from '@/views/chat/constant'
 
 // Props 定义
 interface Props {
