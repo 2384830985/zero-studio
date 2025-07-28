@@ -313,7 +313,7 @@ const modelServices = ref([
     color: '#3b82f6',
     enabled: true,
     apiKey: '',
-    apiUrl: 'https://aigc.sankuai.com/v1/openai/native/chat/completions',
+    apiUrl: '',
     models: [
       {
         name: 'Friday',
@@ -630,12 +630,12 @@ const handleClearConfig = () => {
       service.enabled = false
       service.apiKey = ''
       service.apiUrl = service.id === 'friday' ? 'https://aigc.sankuai.com/v1/openai/native/chat/completions' : ''
-      service.models = service.id === 'friday' ? [{
-        name: 'Friday',
-        description: '通用对话模型',
-        enabled: true,
-        color: '#3b82f6',
-      }] : []
+      // service.models = service.id === 'friday' ? [{
+      //   name: 'Friday',
+      //   description: '通用对话模型',
+      //   enabled: true,
+      //   color: '#3b82f6',
+      // }] : []
     })
 
     // 清除本地存储
