@@ -1,35 +1,16 @@
-import { StateGraph, END, START } from '@langchain/langgraph'
-import { BaseMessage, HumanMessage, AIMessage } from '@langchain/core/messages'
 import { ChatOpenAI } from '@langchain/openai'
-import { StructuredTool } from '@langchain/core/tools'
+import { StructuredTool, tool } from '@langchain/core/tools'
 import { z } from 'zod'
-import {McpServer} from '../../../mcp/mcp-server'
+import { AgentExecutor, createReactAgent } from 'langchain/agents'
+import { PromptTemplate } from '@langchain/core/prompts'
+import { BaseCallbackHandler } from '@langchain/core/callbacks/base'
 
-// 定义状态接口
-interface AgentState {
-  messages: BaseMessage[]
-  goal: string
-  currentThought?: string
-  toolCalls: Array<{
-    toolName: string
-    parameters: Record<string, any>
-    result?: any
-  }>
-  iterations: number
-  maxIterations: number
-  finalAnswer?: string
-  error?: string
-  toolDecision?: {
-    action: 'tool' | 'answer'
-    answer?: string
-    tool?: string
-    parameters?: Record<string, any>
-  }
-}
+import { McpServer } from '../../../mcp/mcp-server'
+
 
 // 定义步骤回调类型
 export type StepCallback = (step: {
-  type: 'reasoning' | 'tool-call' | 'observation' | 'final-answer'
+  type: 'reasoning' | 'tool-call' | 'observation' | 'final-answer' | 'error'
   content: string
   data?: any
 }) => void
@@ -52,30 +33,71 @@ export interface LangGraphReActConfig {
   tools: LangGraphTool[]
 }
 
+// 简化的自定义回调处理器
+class CustomCallbackHandler extends BaseCallbackHandler {
+  name = 'CustomCallbackHandler'
+
+  async handleChainError(error: Error) {
+    console.error(`[链错误] ${error.message}`)
+  }
+
+  async handleToolError(error: Error) {
+    console.error(`[工具错误] ${error.message}`)
+  }
+}
+
 /**
- * 基于 LangGraph 的 ReAct Agent 实现
+ * 基于 LangChain 的 ReAct Agent 实现
+ * 优化版本，提供更好的错误处理和性能
  */
 export class LangGraphReActAgent {
   private llm: ChatOpenAI
   private tools: Map<string, LangGraphTool>
   private config: LangGraphReActConfig
   private stepCallback?: StepCallback
+  private isInitialized = false
 
   constructor(config: LangGraphReActConfig) {
+    this.tools = new Map()
     this.config = config
     this.llm = new ChatOpenAI({
-      modelName: config.model,
-      openAIApiKey: config.apiKey,
+      modelName: this.config.model,
+      openAIApiKey: this.config.apiKey,
       configuration: {
-        baseURL: config.baseURL,
+        baseURL: this.config.baseURL,
       },
-      temperature: config.temperature || 0.3,
-      maxTokens: config.maxTokens || 1000,
+      temperature: this.config.temperature ?? 0.0, // 设置为0以获得最大一致性
+      maxTokens: this.config.maxTokens ?? 3000, // 减少 token 数，加快响应
+      timeout: 45000, // 增加到45秒超时
+      streaming: false, // 禁用流式输出，避免流式处理中断
     })
+    this.validateConfig(config)
+    this.initializeTools()
+  }
 
-    // 初始化工具映射
-    this.tools = new Map()
-    config.tools.forEach(tool => {
+  /**
+   * 验证配置参数
+   */
+  private validateConfig(config: LangGraphReActConfig): void {
+    if (!config.model) {
+      throw new Error('Model is required')
+    }
+    if (!config.apiKey) {
+      throw new Error('API key is required')
+    }
+    if (!config.baseURL) {
+      throw new Error('Base URL is required')
+    }
+    if (!config.tools || config.tools.length === 0) {
+      console.warn('[ReAct Agent] No tools provided, agent will have limited functionality')
+    }
+  }
+
+  /**
+   * 初始化工具映射
+   */
+  private initializeTools(): void {
+    this.config.tools.forEach(tool => {
       this.tools.set(tool.name, tool)
     })
   }
@@ -83,316 +105,323 @@ export class LangGraphReActAgent {
   /**
    * 执行 ReAct 流程
    */
-  async execute(goal: string, stepCallback?: StepCallback): Promise<string> {
-    this.stepCallback = stepCallback
-
-    // 创建状态图
-    const workflow = this.createWorkflow()
-
-    // 初始状态
-    const initialState: AgentState = {
-      messages: [new HumanMessage(goal)],
-      goal,
-      toolCalls: [],
-      iterations: 0,
-      maxIterations: this.config.maxIterations || 10,
+  async execute(input: string, stepCallback?: StepCallback): Promise<any> {
+    if (!input?.trim()) {
+      throw new Error('Input cannot be empty')
     }
 
-    try {
-      // 执行工作流
-      const finalState = await workflow.invoke(initialState as any)
+    this.stepCallback = stepCallback
 
-      if (finalState.error) {
-        throw new Error(finalState.error)
+    try {
+      // 确保 agent 已初始化
+      if (!this.isInitialized) {
+        await this.initializeAgent()
       }
 
-      return finalState.finalAnswer || '未能生成最终答案'
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      const { executor, callbacks } = await this.createReActAgent()
+
+      // 执行推理，添加超时保护
+      const result = await Promise.race([
+        executor.invoke(
+          { input: input.trim() },
+          {
+            callbacks,
+          },
+        ),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Agent execution timeout')), 50000), // 50秒超时
+        ),
+      ])
+
+      // 处理结果
+      const finalResult = this.processResult(result)
+
       this.stepCallback?.({
         type: 'final-answer',
-        content: `执行失败: ${errorMessage}`,
+        content: finalResult.output || '执行完成',
+        data: finalResult,
       })
+
+      return finalResult
+
+    } catch (error) {
+      return this.handleExecutionError(error)
+    }
+  }
+
+  /**
+   * 初始化 Agent（延迟初始化）
+   */
+  private async initializeAgent(): Promise<void> {
+    try {
+      // 验证工具可用性
+      await this.validateTools()
+      this.isInitialized = true
+    } catch (error) {
+      console.error('[ReAct Agent] Agent initialization failed:', error)
       throw error
     }
   }
 
   /**
-   * 创建 LangGraph 工作流
+   * 验证工具可用性
    */
-  private createWorkflow() {
-    const workflow = new StateGraph<AgentState>({
-      channels: {
-        messages: {
-          reducer: (x: BaseMessage[], y: BaseMessage[]) => x.concat(y),
-          default: () => [],
-        },
-        goal: {
-          default: () => '',
-        },
-        currentThought: {
-          default: () => undefined,
-        },
-        toolCalls: {
-          reducer: (x: any[], y: any[]) => x.concat(y),
-          default: () => [],
-        },
-        iterations: {
-          default: () => 0,
-        },
-        maxIterations: {
-          default: () => 10,
-        },
-        finalAnswer: {
-          default: () => undefined,
-        },
-        error: {
-          default: () => undefined,
-        },
-        toolDecision: {
-          default: () => undefined,
-        },
-      },
+  private async validateTools(): Promise<void> {
+    if (!McpServer.langchainTools || McpServer.langchainTools.length === 0) {
+      console.warn('[ReAct Agent] No MCP tools available')
+      return
+    }
+
+    console.log(
+      `[ReAct Agent] ${McpServer.langchainTools.length} tools available:`,
+      McpServer.langchainTools.map(t => t.name).join(', '),
+    )
+  }
+
+  /**
+   * 处理执行结果
+   */
+  private processResult(result: any): any {
+    return {
+      output: result.output || '未能生成回答',
+      content: result.output || '未能生成回答',
+      intermediateSteps: result.intermediateSteps || [],
+      success: true,
+    }
+  }
+
+  /**
+   * 创建 ReAct Agent
+   */
+  private async createReActAgent() {
+    // 创建工具包装器
+    const tools = this.createToolWrappers()
+
+    // 创建优化的 prompt 模板
+    const prompt = this.createPromptTemplate()
+
+    // 创建 agent
+    const agent = await createReactAgent({
+      llm: this.llm,
+      tools,
+      prompt,
     })
 
-    // 添加节点
-    workflow.addNode('reasoning', this.reasoningNode.bind(this))
-    workflow.addNode('tool_decision', this.toolDecisionNode.bind(this))
-    workflow.addNode('tool_execution', this.toolExecutionNode.bind(this))
-    workflow.addNode('final_answer', this.finalAnswerNode.bind(this))
+    // 创建回调处理器
+    const callbacks = [
+      new ExecutionTracer(this.stepCallback),
+      new CustomCallbackHandler(),
+    ]
 
-    // 设置边
-    workflow.addEdge(START, 'reasoning')
-    workflow.addConditionalEdges(
-      'reasoning',
-      this.shouldContinue.bind(this),
-      {
-        continue: 'tool_decision',
-        end: 'final_answer',
-      },
-    )
-    workflow.addConditionalEdges(
-      'tool_decision',
-      this.shouldUseTool.bind(this),
-      {
-        tool: 'tool_execution',
-        answer: 'final_answer',
-      },
-    )
-    workflow.addEdge('tool_execution', 'reasoning')
-    workflow.addEdge('final_answer', END)
+    // 创建执行器
+    const executor = AgentExecutor.fromAgentAndTools({
+      agent,
+      tools,
+      returnIntermediateSteps: true,
+      maxIterations: this.config.maxIterations ?? 5, // 减少迭代次数，避免过多重试
+      handleParsingErrors: this.createParsingErrorHandler(),
+      verbose: process.env.NODE_ENV === 'development', // 只在开发环境启用详细日志
+    })
 
-    return workflow.compile()
+    return { executor, callbacks }
   }
 
   /**
-   * 推理节点
+   * 创建工具包装器
    */
-  private async reasoningNode(state: AgentState): Promise<Partial<AgentState>> {
-    try {
-      // 构建推理提示
-      const context = this.buildContext(state)
-      const prompt = `你是一个 ReAct 代理。请根据以下信息进行推理：
-
-目标: ${state.goal}
-
-当前上下文:
-${context}
-
- 可用工具:
-${Array.from(this.tools.values()).map(tool =>
-    `- ${tool.name}: ${tool.description}`,
-  ).join('\n')}
-
-请思考下一步应该做什么。只返回你的思考过程，不要包含其他内容。`
-
-      const response = await this.llm.invoke([new HumanMessage(prompt)])
-      const thought = response.content.toString()
-
-      // 触发回调
-      this.stepCallback?.({
-        type: 'reasoning',
-        content: thought,
-      })
-
-      return {
-        currentThought: thought,
-        iterations: state.iterations + 1,
-        messages: [...state.messages, response],
-      }
-    } catch (error) {
-      return {
-        error: `推理阶段失败: ${error instanceof Error ? error.message : '未知错误'}`,
-      }
+  private createToolWrappers(): any[] {
+    if (!McpServer.langchainTools) {
+      return []
     }
-  }
 
-  /**
-   * 工具决策节点
-   */
-  private async toolDecisionNode(state: AgentState): Promise<Partial<AgentState>> {
-    try {
-      const prompt = `基于你的思考: "${state.currentThought}"
-
-你需要决定下一步行动。请选择以下选项之一：
-
-1. 使用工具 - 如果需要获取更多信息或执行操作
-2. 给出最终答案 - 如果已有足够信息回答问题
-`
-
-      // 绑定工具到 LLM
-      const llmWithTools = this.llm.bindTools(McpServer.langchainTools)
-      const response = await llmWithTools.invoke([new HumanMessage(prompt)])
-
-      return {
-        messages: [...state.messages, response],
-        toolDecision: {
-          action: response.tool_calls?.length ? 'tool' : 'answer',
-          answer: response.tool_calls?.length ? '' : response.content,
-          tool: response.tool_calls?.[0]?.name,
-          parameters: response.tool_calls?.[0]?.args,
+    return McpServer.langchainTools.map(toolItem => {
+      return tool(
+        async (input: string | object) => {
+          return this.executeToolSafely(toolItem.name, input)
         },
-      }
-    } catch (error) {
-      return {
-        error: `工具决策失败: ${error instanceof Error ? error.message : '未知错误'}`,
-      }
-    }
+        {
+          name: toolItem.name,
+          description: toolItem.description,
+        },
+      )
+    })
   }
 
   /**
-   * 工具执行节点
+   * 安全执行工具
    */
-  private async toolExecutionNode(state: AgentState): Promise<Partial<AgentState>> {
+  private async executeToolSafely(toolName: string, input: string | object): Promise<any> {
     try {
-      const decision = (state as any).toolDecision
-      const tool = this.tools.get(decision.tool)
+      console.log(`[工具执行] ${toolName}:`, input)
 
-      if (!tool) {
-        return {
-          error: `未找到工具: ${decision.tool}`,
-        }
+      // 解析输入参数
+      const args = this.parseToolInput(input)
+
+      // 获取工具实例
+      const toolInstance = this.tools.get(toolName)
+      if (!toolInstance) {
+        return `错误: 未找到工具 "${toolName}"`
       }
-
-      console.log('decision', decision)
-
-      // 触发工具调用回调
-      this.stepCallback?.({
-        type: 'tool-call',
-        content: `调用工具: ${decision.tool}`,
-        data: { toolName: decision.tool, parameters: decision.parameters },
-      })
 
       // 执行工具
-      const result = await tool.invoke(decision.parameters)
+      const result = await Promise.race([
+        toolInstance.invoke(args),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Tool execution timeout')), 15000),
+        ),
+      ])
 
-      // 触发观察回调
-      this.stepCallback?.({
-        type: 'observation',
-        content: typeof result === 'string' ? result : JSON.stringify(result),
-        data: result,
-      })
+      console.log(`[工具结果] ${toolName}:`, result)
+      return result
 
-      const toolCall = {
-        toolName: decision.tool,
-        parameters: decision.parameters,
-        result,
-      }
-
-      return {
-        toolCalls: [toolCall],
-        messages: [...state.messages, new AIMessage(`工具执行结果: ${JSON.stringify(result)}`)],
-      }
     } catch (error) {
-      return {
-        error: `工具执行失败: ${error instanceof Error ? error.message : '未知错误'}`,
-      }
+      const errorMsg = `工具 "${toolName}" 执行失败: ${error instanceof Error ? error.message : '未知错误'}`
+      console.error(`[工具错误] ${errorMsg}`)
+      return errorMsg
     }
   }
 
   /**
-   * 最终答案节点
+   * 解析工具输入
    */
-  private async finalAnswerNode(state: AgentState): Promise<Partial<AgentState>> {
-    let finalAnswer: string
-
-    if (state.error) {
-      finalAnswer = `执行过程中出现错误: ${state.error}`
-    } else if ((state as any).toolDecision?.action === 'answer') {
-      finalAnswer = (state as any).toolDecision.answer
-    } else {
-      // 基于所有信息生成最终答案
-      const context = this.buildContext(state)
-      const prompt = `基于以下所有信息，请给出最终答案：
-
-目标: ${state.goal}
-
-执行过程:
-${context}
-
-请提供一个清晰、完整的最终答案。`
-
-      const response = await this.llm.invoke([new HumanMessage(prompt)])
-      finalAnswer = response.content.toString()
+  private parseToolInput(input: string | object): any {
+    if (typeof input === 'object') {
+      return input
     }
 
-    // 触发最终答案回调
+    try {
+      return JSON.parse(input)
+    } catch {
+      // 如果不是 JSON，尝试作为简单字符串处理
+      return { input }
+    }
+  }
+
+  /**
+   * 创建优化的 Prompt 模板
+   */
+  private createPromptTemplate(): PromptTemplate {
+    return new PromptTemplate({
+      inputVariables: ['tools', 'tool_names', 'agent_scratchpad', 'input'],
+      template: `你是一个智能助手，能够使用工具来帮助回答问题。请严格按照 ReAct 格式进行推理。
+
+可用工具：
+{tools}
+
+工具名称：{tool_names}
+
+格式要求：
+每次回复必须严格遵循以下两种格式之一：
+
+格式A（使用工具）：
+Thought: [你的思考过程]
+Action: [工具名称，必须是 {tool_names} 中的一个]
+Action Input: [JSON格式的工具输入参数]
+
+格式B（给出最终答案）：
+Thought: [你的思考过程]
+Final Answer: [对用户问题的完整回答]
+
+【严格禁止】：
+- 绝对不要在同一回复中同时包含 "Action:" 和 "Final Answer:"
+- 不要预测或编造 "Observation:" 的内容
+- 不要在 Action 后继续输出其他内容
+- 不要在 Final Answer 后继续输出其他内容
+
+【决策规则】：
+- 如果需要获取更多信息或执行操作，使用格式A
+- 如果已有足够信息回答问题，使用格式B
+- 每次只能选择一种格式
+
+Question: {input}
+{agent_scratchpad}`,
+    })
+  }
+
+  /**
+   * 创建解析错误处理器
+   */
+  private createParsingErrorHandler() {
+    return (error: Error) => {
+      console.error('[ReAct Agent] 解析错误:', error.message)
+
+      this.stepCallback?.({
+        type: 'error',
+        content: '输出格式解析失败，正在重试...',
+        data: { error: error.message },
+      })
+
+      // 根据错误类型提供更具体的指导
+      if (error.message.includes('both a final answer and a parse-able action')) {
+        return `严重格式错误：你在同一个回复中同时包含了 Action 和 Final Answer！
+
+请严格遵循以下规则：
+1. 如果需要使用工具，只输出：Thought + Action + Action Input
+2. 如果要给出答案，只输出：Thought + Final Answer
+3. 绝对不要在同一回复中混合使用这两种格式
+
+请重新组织你的回答，只选择其中一种格式。`
+      }
+
+      return `输出格式有误，请严格按照 ReAct 格式重新组织回答。
+
+错误详情: ${error.message}
+
+请确保：
+- 每次回复只包含一种格式（要么是工具调用，要么是最终答案）
+- 不要预测 Observation 的内容
+- 严格按照 Thought -> Action -> Action Input 或 Thought -> Final Answer 的格式`
+    }
+  }
+
+  /**
+   * 获取 Agent 状态
+   */
+  getStatus(): { initialized: boolean; toolCount: number; model: string } {
+    return {
+      initialized: this.isInitialized,
+      toolCount: this.tools.size,
+      model: this.config.model,
+    }
+  }
+
+  /**
+   * 重置 Agent 状态
+   */
+  reset(): void {
+    this.isInitialized = false
+    this.stepCallback = undefined
+  }
+
+  /**
+   * 处理执行错误
+   */
+  private handleExecutionError(error: any): any {
+    const errorMessage = error instanceof Error ? error.message : '未知错误'
+    console.error('[ReAct Agent] Execution failed:', errorMessage)
+
+    // 根据错误类型提供不同的处理
+    let userMessage = ''
+    if (errorMessage.includes('AbortError') || errorMessage.includes('timeout')) {
+      userMessage = '请求超时，请稍后重试或简化您的问题'
+    } else if (errorMessage.includes('Agent execution timeout')) {
+      userMessage = '执行超时，请尝试将问题分解为更简单的步骤'
+    } else {
+      userMessage = `执行过程中遇到了问题: ${errorMessage}`
+    }
+
     this.stepCallback?.({
-      type: 'final-answer',
-      content: finalAnswer,
+      type: 'error',
+      content: userMessage,
+      data: { error: errorMessage },
     })
 
     return {
-      finalAnswer,
-      messages: [...state.messages, new AIMessage(finalAnswer)],
+      output: `抱歉，${userMessage}`,
+      content: `抱歉，${userMessage}`,
+      intermediateSteps: [],
+      success: false,
+      error: errorMessage,
     }
-  }
-
-  /**
-   * 判断是否继续推理
-   */
-  private shouldContinue(state: AgentState): string {
-    if (state.error) {
-      return 'end'
-    }
-    if (state.iterations >= state.maxIterations) {
-      return 'end'
-    }
-    return 'continue'
-  }
-
-  /**
-   * 判断是否使用工具
-   */
-  private shouldUseTool(state: AgentState): string {
-    const decision = (state as any).toolDecision
-    if (!decision) {
-      return 'answer'
-    }
-    return decision.action === 'tool' ? 'tool' : 'answer'
-  }
-
-  /**
-   * 构建上下文信息
-   */
-  private buildContext(state: AgentState): string {
-    let context = ''
-
-    // 添加历史思考
-    if (state.currentThought) {
-      context += `当前思考: ${state.currentThought}\n`
-    }
-
-    // 添加工具调用历史
-    if (state.toolCalls.length > 0) {
-      context += '\n工具调用历史:\n'
-      state.toolCalls.forEach((call, index) => {
-        context += `${index + 1}. ${call.toolName}(${JSON.stringify(call.parameters)}) -> ${JSON.stringify(call.result)}\n`
-      })
-    }
-
-    context += `\n当前迭代: ${state.iterations}/${state.maxIterations}`
-
-    return context
   }
 }

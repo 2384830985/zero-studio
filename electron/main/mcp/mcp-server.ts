@@ -1,5 +1,5 @@
 import {EnabledMCPServer, StdioMcpClientToFunction} from './StdioMcpServerToFunction'
-import { DynamicStructuredTool} from '@langchain/core/tools'
+import { DynamicStructuredTool } from '@langchain/core/tools'
 import * as console from 'node:console'
 
 export class McpServer {

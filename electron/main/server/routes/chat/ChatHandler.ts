@@ -182,8 +182,12 @@ export abstract class ChatHandler {
     let fullContent = ''
 
     for await (const chunk of stream) {
-      if (chunk.content) {
-        fullContent += chunk.content
+      if (chunk.content || chunk.output) {
+        if (chunk.content) {
+          fullContent += chunk.content
+        } else if (chunk.output) {
+          fullContent += chunk.output
+        }
         this.communication.sendStreaming({
           conversationId,
           messageId: generateId(),

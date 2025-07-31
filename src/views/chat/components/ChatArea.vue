@@ -283,7 +283,9 @@ const formatTime = (timestamp: number) => {
 
 // 格式化消息内容
 const formatMessage = (content: string) => {
-  console.log('content', content)
+  if (typeof content !== 'string') {
+    return '返回数据错误'
+  }
   return md.render(content)
 }
 

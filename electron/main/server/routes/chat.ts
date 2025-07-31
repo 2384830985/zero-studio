@@ -25,7 +25,7 @@ export class Chat {
    * @private
    */
   async handleChatReactSend(_, object) {
-    return this.reActHandler.handleChatReactSend(_, object)
+    return this.reActHandler.handleChatReActSend(_, object)
   }
 
   async handleChatPlanSend(_, object) {

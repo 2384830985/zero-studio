@@ -63,7 +63,7 @@
             <a-input-number
               v-model:value="maxTokens"
               :min="1"
-              :max="2000"
+              :max="200000"
               size="small"
               class="custom-input-number"
             />

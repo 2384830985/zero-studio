@@ -12,7 +12,7 @@ export class ReActChatHandler extends ChatHandler {
   /**
    * 处理 ReAct 聊天发送
    */
-  async handleChatReactSend(_, object: string) {
+  async handleChatReActSend(_, object: string) {
     try {
       const req = JSON.parse(object)
       const { content, metadata = {}, conversationId = '' } = req
@@ -31,14 +31,22 @@ export class ReActChatHandler extends ChatHandler {
       reAct.initializeReActAgent(metadata)
 
       // 创建步骤回调
-      const stepCallback = this.createStepCallback(conversationId, metadata)
+      const stepCallback = (type: string, content) => {
+        if (type === 'stream') {
+          this.processStreamResponse(content, conversationId, metadata)
+        } else {
+          this.sendAssistantMessage(content, conversationId, metadata)
+        }
+      }
 
       // 执行 ReAct 代理
-      const result = await reAct.reactAgent?.execute(content, stepCallback) as string
-      console.log('最终结果:', result)
+      const response = await reAct.reactAgent?.execute(content, stepCallback) as Promise<any>
 
-      // 发送最终结果
-      this.sendAssistantMessage(result, conversationId, metadata)
+      // 处理响应
+      this.processAIGCResponseContent(response, conversationId, metadata).then(fullContent => {
+        console.log('fullContent', fullContent)
+        this.sendFinalMessage(fullContent, response, conversationId, metadata)
+      })
 
       return this.createSuccessResponse({ conversationId })
     } catch (error) {

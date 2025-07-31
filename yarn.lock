@@ -636,6 +636,24 @@
     uuid "^10.0.0"
     zod "^3.25.32"
 
+"@langchain/core@^0.3.0":
+  version "0.3.66"
+  resolved "https://registry.npmjs.org/@langchain/core/-/core-0.3.66.tgz#cd20687f29a07148436cd8b72b88c66d076c500c"
+  integrity sha512-d3SgSDOlgOjdIbReIXVQl9HaQzKqO/5+E+o3kJwoKXLGP9dxi7+lMyaII7yv7G8/aUxMWLwFES9zc1jFoeJEZw==
+  dependencies:
+    "@cfworker/json-schema" "^4.0.2"
+    ansi-styles "^5.0.0"
+    camelcase "6"
+    decamelize "1.2.0"
+    js-tiktoken "^1.0.12"
+    langsmith "^0.3.46"
+    mustache "^4.2.0"
+    p-queue "^6.6.2"
+    p-retry "4"
+    uuid "^10.0.0"
+    zod "^3.25.32"
+    zod-to-json-schema "^3.22.3"
+
 "@langchain/core@^0.3.62":
   version "0.3.62"
   resolved "https://registry.npmjs.org/@langchain/core/-/core-0.3.62.tgz"
@@ -4771,6 +4789,13 @@ kolorist@^1.8.0:
   resolved "https://registry.npmjs.org/kolorist/-/kolorist-1.8.0.tgz"
   integrity sha512-Y+60/zizpJ3HRH8DCss+q95yr6145JXZo46OTpFvDZWLfRCE4qChOyk1b26nMaNpfHHgxagk9dXT5OP0Tfe+dQ==
 
+langchain-react-chinese-parser@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.npmjs.org/langchain-react-chinese-parser/-/langchain-react-chinese-parser-1.0.4.tgz#1c5b7aed2cf6f14d8370a60d9e20012b35e442a6"
+  integrity sha512-rC6HT/hVgKbfVhWuogAJYXJ/tsPKP1qTHY1vEUwz8CmdjNI7lZJkoruYSpdfkzY9/fZH8gT5FeafTqgWloJiTQ==
+  dependencies:
+    "@langchain/core" "^0.3.0"
+
 "langchain@>=0.2.3 <0.3.0 || >=0.3.4 <0.4.0", langchain@^0.3.29:
   version "0.3.29"
   resolved "https://registry.npmjs.org/langchain/-/langchain-0.3.29.tgz"
@@ -4803,6 +4828,19 @@ langsmith@^0.3.33:
   version "0.3.40"
   resolved "https://registry.npmjs.org/langsmith/-/langsmith-0.3.40.tgz"
   integrity sha512-6tWo2wauozHmQjriJuAlRWUw5XTxIfFVwLrUU79MNfp79ZrYhFQZzJLB7TodXWx8o243GxWMoCFc+ZI/2LGauQ==
+  dependencies:
+    "@types/uuid" "^10.0.0"
+    chalk "^4.1.2"
+    console-table-printer "^2.12.1"
+    p-queue "^6.6.2"
+    p-retry "4"
+    semver "^7.6.3"
+    uuid "^10.0.0"
+
+langsmith@^0.3.46:
+  version "0.3.50"
+  resolved "https://registry.npmjs.org/langsmith/-/langsmith-0.3.50.tgz#bbed0e934f0c91394a485b64e7b3c50abd86fae3"
+  integrity sha512-yosW6sR0EFnMnYKKyBmcqTNknDVOs+dUfcswWk80JoRxox6WEyel7hmSkSzabP/GmTs0hXbrtc+lZwpJWSnI0w==
   dependencies:
     "@types/uuid" "^10.0.0"
     chalk "^4.1.2"
