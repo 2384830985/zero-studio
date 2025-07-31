@@ -1,8 +1,9 @@
 import { BrowserWindow } from 'electron'
 import { ChatHandler } from './ChatHandler'
-import { ReActService } from '../../services/ReActService'
 import { CommunicationRole } from '../../../mcp'
 import { generateId } from '../../utils/helpers'
+import {LangGraphReActAgent, LangGraphReActConfig, LangGraphTool} from '../../services/react-agent'
+import {McpServer} from '../../../mcp/mcp-server'
 
 export class ReActChatHandler extends ChatHandler {
   constructor(win: BrowserWindow) {
@@ -25,27 +26,41 @@ export class ReActChatHandler extends ChatHandler {
 
       // 广播用户消息
       this.broadcastUserMessage(content, conversationId, metadata)
-
+      const config: LangGraphReActConfig = {
+        model: metadata.model,
+        apiKey: metadata.service.apiKey,
+        baseURL: metadata.service.apiUrl,
+        temperature: 0.3,
+        maxTokens: 1000,
+        maxIterations: 15,
+        tools: McpServer.langchainTools as LangGraphTool[],
+      }
       // 初始化 ReAct 服务
-      const reAct = new ReActService(this.win)
-      reAct.initializeReActAgent(metadata)
+      const reAct = new LangGraphReActAgent(config)
 
-      // 创建步骤回调
-      const stepCallback = (type: string, content) => {
-        if (type === 'stream') {
-          this.processStreamResponse(content, conversationId, metadata)
-        } else {
-          this.sendAssistantMessage(content, conversationId, metadata)
-        }
+      // // 创建步骤回调
+      // const stepCallback = (type: string, content) => {
+      //   console.log(111111111)
+      //   if (type === 'stream') {
+      //     this.processStreamResponse(content, conversationId, metadata)
+      //   } else {
+      //     this.sendAssistantMessage(content, conversationId, metadata)
+      //   }
+      // }
+
+      // 创建流式发送函数
+      const sendStreaming = () => {
+        this.sendStreamingMessage('', conversationId, metadata)
       }
 
-      // 执行 ReAct 代理
-      const response = await reAct.reactAgent?.execute(content, stepCallback) as Promise<any>
-
-      // 处理响应
-      this.processAIGCResponseContent(response, conversationId, metadata).then(fullContent => {
-        console.log('fullContent', fullContent)
-        this.sendFinalMessage(fullContent, response, conversationId, metadata)
+      // 调用 AIGC API
+      await reAct?.execute(content, sendStreaming).then(async response => {
+        // 处理响应
+        const fullContent = await this.processAIGCResponseContent(response, conversationId, metadata)
+        // 发送完整消息
+        if (fullContent) {
+          this.sendFinalMessage(fullContent, response, conversationId, metadata)
+        }
       })
 
       return this.createSuccessResponse({ conversationId })

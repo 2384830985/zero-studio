@@ -43,17 +43,17 @@
               v-for="card in message?.contentLimited?.cardList"
               :key="`${card.type}_${Date.now()}`"
             >
+              <div
+                v-if="card.content"
+                class="text-sm leading-relaxed mb-2"
+                v-html="formatMessage(card.content)"
+              />
               <!-- MCP 工具调用显示 -->
               <MCPToolDisplay
                 v-if="card.type === Exhibition.TOOLS"
                 :tool-calls="card.toolCalls"
                 :tool-results="card.toolResults"
                 class="mb-3"
-              />
-              <div
-                v-else
-                class="text-sm leading-relaxed mb-2"
-                v-html="formatMessage(card.content)"
               />
             </template>
           </template>

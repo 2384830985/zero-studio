@@ -6,6 +6,8 @@ import { PromptTemplate } from '@langchain/core/prompts'
 import { BaseCallbackHandler } from '@langchain/core/callbacks/base'
 
 import { McpServer } from '../../../mcp/mcp-server'
+import { getExhibitionTEXT, getExhibitionTOOLS, IExhibitionCon } from '../../utils'
+import {ResponseBuilder} from '../response/ResponseBuilder'
 
 
 // 定义步骤回调类型
@@ -33,6 +35,58 @@ export interface LangGraphReActConfig {
   tools: LangGraphTool[]
 }
 
+// 优化的执行追踪器
+class ExecutionTracer extends BaseCallbackHandler {
+  name = 'ExecutionTracer'
+  private stepCallback?: StepCallback
+
+  constructor(stepCallback?: StepCallback) {
+    super()
+    this.stepCallback = stepCallback
+  }
+
+  async handleAgentAction(action: any) {
+    const message = `调用工具: ${action.tool}`
+    console.log(`[决策] ${message}`, `输入: ${JSON.stringify(action.toolInput)}`)
+
+    this.stepCallback?.({
+      type: 'tool-call',
+      content: message,
+      data: { tool: action.tool, input: action.toolInput },
+    })
+  }
+
+  async handleToolEnd(output: string) {
+    console.log(`[结果] 工具返回: ${output}`)
+
+    this.stepCallback?.({
+      type: 'observation',
+      content: this.truncateOutput(output),
+      data: { fullOutput: output },
+    })
+  }
+
+  async handleAgentEnd(output: any) {
+    console.log(`[完成] 最终答案: ${output.output}`)
+  }
+
+  async handleLLMStart() {
+    console.log('[推理] 开始思考...')
+
+    this.stepCallback?.({
+      type: 'reasoning',
+      content: '正在分析问题并制定行动计划...',
+    })
+  }
+
+  private truncateOutput(output: string, maxLength = 200): string {
+    if (output.length <= maxLength) {
+      return output
+    }
+    return output.substring(0, maxLength) + '...'
+  }
+}
+
 // 简化的自定义回调处理器
 class CustomCallbackHandler extends BaseCallbackHandler {
   name = 'CustomCallbackHandler'
@@ -56,6 +110,7 @@ export class LangGraphReActAgent {
   private config: LangGraphReActConfig
   private stepCallback?: StepCallback
   private isInitialized = false
+  private responseBuilder = new ResponseBuilder()
 
   constructor(config: LangGraphReActConfig) {
     this.tools = new Map()
@@ -118,7 +173,10 @@ export class LangGraphReActAgent {
         await this.initializeAgent()
       }
 
-      const { executor, callbacks } = await this.createReActAgent()
+      const {
+        executor,
+        callbacks,
+      } = await this.createReActAgent()
 
       // 执行推理，添加超时保护
       const result = await Promise.race([
@@ -141,9 +199,13 @@ export class LangGraphReActAgent {
         content: finalResult.output || '执行完成',
         data: finalResult,
       })
-
-      return finalResult
-
+      return this.responseBuilder.buildToolCallResponse(
+        finalResult.output,
+        '',
+        [],
+        [],
+        finalResult.cardList,
+      )
     } catch (error) {
       return this.handleExecutionError(error)
     }
@@ -182,11 +244,57 @@ export class LangGraphReActAgent {
    * 处理执行结果
    */
   private processResult(result: any): any {
+    const output = result.output || '未能生成回答'
+    const intermediateSteps = result.intermediateSteps || []
+
+    // 构建 cardList
+    const cardList: IExhibitionCon[] = []
+
+    console.log('intermediateSteps', intermediateSteps)
+
+    // 添加工具调用信息到 cardList
+    if (intermediateSteps.length > 0) {
+      intermediateSteps.forEach((step: any, index: number) => {
+        const toolCalls: any[] = []
+        const toolResults: any[] = []
+        if (step.action && step.action.tool !== '_Exception') {
+          // 工具调用信息
+          toolCalls.push({
+            id: `tool_${index}_${Date.now()}`,
+            name: step.action.tool,
+            arguments: step.action.toolInput,
+            serverId: 'react-agent',
+            serverName: 'ReAct Agent',
+          })
+
+          // 工具执行结果
+          if (step.observation) {
+            toolResults.push({
+              toolCallId: `tool_${index}_${Date.now()}`,
+              toolName: step.action.tool,
+              success: true,
+              result: step.observation,
+              executionTime: 0, // ReAct Agent 没有提供执行时间
+            })
+          }
+          cardList.push(getExhibitionTOOLS({
+            toolCalls,
+            toolResults,
+            content: step.action.log,
+          }))
+        }
+      })
+    }
+
+    // 添加文本内容卡片
+    cardList.push(getExhibitionTEXT(output))
+
     return {
-      output: result.output || '未能生成回答',
-      content: result.output || '未能生成回答',
-      intermediateSteps: result.intermediateSteps || [],
+      output,
+      content: output,
+      intermediateSteps,
       success: true,
+      cardList, // 添加 cardList 用于前端展示
     }
   }
 
