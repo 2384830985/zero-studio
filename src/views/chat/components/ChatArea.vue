@@ -45,7 +45,7 @@
             >
               <div
                 v-if="card.content"
-                class="text-sm leading-relaxed mb-2"
+                class="text-sm leading-relaxed mb-2 overflow-wrap-anywhere break-all"
                 v-html="formatMessage(card.content)"
               />
               <!-- MCP 工具调用显示 -->
@@ -59,7 +59,7 @@
           </template>
           <div
             v-else
-            class="text-sm leading-relaxed mb-2"
+            class="text-sm leading-relaxed mb-2 break-all overflow-wrap-anywhere"
             v-html="formatMessage(message.content)"
           />
           <div
@@ -86,7 +86,7 @@
       >
         <div class="max-w-[70%] bg-white text-gray-800 shadow-sm border border-gray-200 rounded-2xl px-4 py-3 ml-2">
           <div
-            class="text-sm leading-relaxed mb-2"
+            class="text-sm leading-relaxed mb-2 break-all overflow-wrap-anywhere"
             v-html="formatMessage(streamingMessage.content)"
           />
           <!-- MCP 工具调用显示 -->
@@ -536,5 +536,33 @@ defineExpose({
 
 :deep(*:last-child) {
   margin-bottom: 0 !important;
+}
+
+/* 强制换行样式 - 确保所有文本内容都能正确换行 */
+:deep(.text-sm) {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+/* 确保链接和代码也能正确换行 */
+:deep(a) {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+:deep(code) {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+:deep(pre) {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 </style>
