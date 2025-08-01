@@ -8,6 +8,8 @@ import { BaseCallbackHandler } from '@langchain/core/callbacks/base'
 import { McpServer } from '../../../mcp/mcp-server'
 import { getExhibitionTEXT, getExhibitionTOOLS, IExhibitionCon } from '../../utils'
 import {ResponseBuilder} from '../response/ResponseBuilder'
+import {BaseMessage} from '@langchain/core/dist/messages/base'
+import {DynamicStructuredTool} from '@langchain/core/dist/tools'
 
 
 // 定义步骤回调类型
@@ -160,7 +162,7 @@ export class LangGraphReActAgent {
   /**
    * 执行 ReAct 流程
    */
-  async execute(input: string, stepCallback?: StepCallback): Promise<any> {
+  async execute(input: string, message: BaseMessage[], stepCallback?: StepCallback): Promise<any> {
     if (!input?.trim()) {
       throw new Error('Input cannot be empty')
     }
@@ -176,7 +178,7 @@ export class LangGraphReActAgent {
       const {
         executor,
         callbacks,
-      } = await this.createReActAgent()
+      } = await this.createReActAgent(message)
 
       // 执行推理，添加超时保护
       const result = await Promise.race([
@@ -301,12 +303,12 @@ export class LangGraphReActAgent {
   /**
    * 创建 ReAct Agent
    */
-  private async createReActAgent() {
+  private async createReActAgent(message: BaseMessage[]) {
     // 创建工具包装器
-    const tools = this.createToolWrappers()
+    const { tools, toolsPrompt } = this.createToolWrappers()
 
     // 创建优化的 prompt 模板
-    const prompt = this.createPromptTemplate()
+    const prompt: PromptTemplate = this.createPromptTemplate(message, toolsPrompt)
 
     // 创建 agent
     const agent = await createReactAgent({
@@ -337,12 +339,23 @@ export class LangGraphReActAgent {
   /**
    * 创建工具包装器
    */
-  private createToolWrappers(): any[] {
-    if (!McpServer.langchainTools) {
-      return []
-    }
+  private createToolWrappers(): { tools: DynamicStructuredTool<any>[]; toolsPrompt: string } {
+    let toolsPrompt = ''
 
-    return McpServer.langchainTools.map(toolItem => {
+    const tools = McpServer.langchainTools.map(toolItem => {
+    // # Tool_Name: Addition
+    // # Tool_Description: useful when to add two numbers
+    // # Tool_Input: {{"a": integer, "b": integer}}
+      let input = JSON.stringify(toolItem?.schema?.properties || '}')
+
+      input = input.replace(/\{/g, '{{')
+      input = input.replace(/}/g, '}}')
+
+      toolsPrompt += `
+        # Tool_Name: ${toolItem.name}
+        # Tool_Description: ${toolItem.description}
+        # Tool_Input: ${input || '无输入参数'}
+      `
       return tool(
         async (input: string | object) => {
           return this.executeToolSafely(toolItem.name, input)
@@ -353,6 +366,11 @@ export class LangGraphReActAgent {
         },
       )
     })
+
+    return {
+      tools,
+      toolsPrompt,
+    }
   }
 
   /**
@@ -406,15 +424,36 @@ export class LangGraphReActAgent {
   }
 
   /**
+   * 格式化历史消息
+   */
+  private formatHistoryMessages(messages: BaseMessage[]): string {
+    if (!messages || messages.length === 0) {
+      return ''
+    }
+
+    const formattedMessages = messages.map(msg => {
+      const role = msg._getType() === 'human' ? 'User' : 'Assistant'
+      const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+      return `${role}: ${content}`
+    }).join('\n')
+
+    return formattedMessages.trim() ? `\n历史对话记录：\n${formattedMessages}\n` : ''
+  }
+
+  /**
    * 创建优化的 Prompt 模板
    */
-  private createPromptTemplate(): PromptTemplate {
+  private createPromptTemplate(message: BaseMessage[], tools: string): PromptTemplate {
+    const historyContext = this.formatHistoryMessages(message)
+    console.log('historyContext', historyContext)
+    // console.log('historyContext', historyContext)
+    // console.log('historyContext======')
     return new PromptTemplate({
       inputVariables: ['tools', 'tool_names', 'agent_scratchpad', 'input'],
       template: `你是一个智能助手，能够使用工具来帮助回答问题。请严格按照 ReAct 格式进行推理。
 
 可用工具：
-{tools}
+${tools}
 
 工具名称：{tool_names}
 
@@ -440,6 +479,7 @@ Final Answer: [对用户问题的完整回答]
 - 如果需要获取更多信息或执行操作，使用格式A
 - 如果已有足够信息回答问题，使用格式B
 - 每次只能选择一种格式
+- 在回答时请参考历史对话记录中的上下文信息
 
 Question: {input}
 {agent_scratchpad}`,

@@ -16,7 +16,7 @@ export class ReActChatHandler extends ChatHandler {
   async handleChatReActSend(_, object: string) {
     try {
       const req = JSON.parse(object)
-      const { content, metadata = {}, conversationId = '' } = req
+      const { content, metadata = {}, conversationId = '', oldMessage } = req
 
       // 验证内容
       const validation = this.validateContent(content)
@@ -24,8 +24,12 @@ export class ReActChatHandler extends ChatHandler {
         return this.createErrorResponse(400, validation.error!)
       }
 
-      // 广播用户消息
+      // 创建并广播用户消息
       this.broadcastUserMessage(content, conversationId, metadata)
+
+      // 转换消息格式
+      const langchainMessages = this.convertToLangchainMessages([...oldMessage])
+
       const config: LangGraphReActConfig = {
         model: metadata.model,
         apiKey: metadata.service.apiKey,
@@ -54,7 +58,7 @@ export class ReActChatHandler extends ChatHandler {
       }
 
       // 调用 AIGC API
-      await reAct?.execute(content, sendStreaming).then(async response => {
+      await reAct?.execute(content, langchainMessages, sendStreaming).then(async response => {
         // 处理响应
         const fullContent = await this.processAIGCResponseContent(response, conversationId, metadata)
         // 发送完整消息

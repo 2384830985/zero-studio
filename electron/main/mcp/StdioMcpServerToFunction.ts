@@ -276,8 +276,6 @@ export class StdioMcpClientToFunction {
           if (cmd.includes('bun')) {
             this.removeProxyEnv(loginShellEnv)
           }
-          console.log('loginShellEnv', loginShellEnv)
-
           // add -x to args if args exist
           if (config.args && config.args.length > 0) {
             if (!config.args.includes('-y')) {
@@ -287,8 +285,6 @@ export class StdioMcpClientToFunction {
               config.args.unshift('x')
             }
           }
-
-          console.log('config.args', config.args)
 
           // 创建传输实例
           const transport = new StdioClientTransport({
