@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai'
-import { StructuredTool, tool } from '@langchain/core/tools'
+import { StructuredTool, DynamicTool } from '@langchain/core/tools'
 import { z } from 'zod'
 import { AgentExecutor, createReactAgent } from 'langchain/agents'
 import { PromptTemplate } from '@langchain/core/prompts'
@@ -356,15 +356,22 @@ export class LangGraphReActAgent {
         # Tool_Description: ${toolItem.description}
         # Tool_Input: ${input || '无输入参数'}
       `
-      return tool(
-        async (input: string | object) => {
-          return this.executeToolSafely(toolItem.name, input)
+      return new DynamicTool({
+        name: toolItem.name,
+        description: toolItem.description,
+        func: async (_input: string | object) => {
+          return this.executeToolSafely(toolItem.name, _input)
         },
-        {
-          name: toolItem.name,
-          description: toolItem.description,
-        },
-      )
+      })
+      // return tool(
+      //   async (input: string | object) => {
+      //     return this.executeToolSafely(toolItem.name, input)
+      //   },
+      //   {
+      //     name: toolItem.name,
+      //     description: toolItem.description,
+      //   },
+      // )
     })
 
     return {
