@@ -1,31 +1,73 @@
-name: Build and Release
+name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
   push:
     tags:
-      - 'v*' # 当推送以 v 开头的标签时触发，如 v1.0.0
-  workflow_dispatch: # 允许手动触发
+      - v*.*.*
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  release:
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
+      fail-fast: false
 
     steps:
-      - name: Checkout code
+      - name: Check out Git repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Node.js
+      - name: Get release tag
+        id: get-tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
-          cache: 'yarn'
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: macOS dependencies fix
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install python-setuptools
+
+      - name: Install corepack
+        run: corepack enable && corepack prepare yarn@stable --activate
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+
+      - name: Cache yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.yarn-cache-dir-path.outputs.dir }}
+            node_modules
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install Dependencies
+        run: yarn install
 
       - name: Create environment files
         run: |
@@ -33,72 +75,46 @@ jobs:
           echo "ELECTRON=1" >> .env.pro
         shell: bash
 
-      - name: Build application
-        run: yarn build
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          yarn build
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
 
-      - name: Build Electron app (macOS)
+      - name: Build Mac
         if: matrix.os == 'macos-latest'
-        run: yarn electron:build
+        run: |
+          sudo -H pip install setuptools
+          yarn build
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false # 禁用代码签名
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_ENV: production
 
-      - name: Build Electron app (Windows)
+      - name: Build Windows
         if: matrix.os == 'windows-latest'
-        run: yarn electron:build
+        run: |
+          yarn build
         env:
-          CSC_LINK: '' # 禁用代码签名
+          CSC_LINK: ''
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_ENV: production
 
-      - name: Build Electron app (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: yarn electron:build
-
-      - name: Upload artifacts (macOS)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
+      - name: Release
+        uses: ncipollo/release-action@v1
         with:
-          name: macos-build
-          path: release/
-
-      - name: Upload artifacts (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: release/
-
-      - name: Upload artifacts (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: release/
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Display structure of downloaded files
-        run: find artifacts -type f -name "*" | head -20
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          draft: false
+          allowUpdates: true
+          makeLatest: true
+          tag: ${{ steps.get-tag.outputs.tag }}
+          name: Release ${{ steps.get-tag.outputs.tag }}
           body: |
-            ## 🎉 新版本发布 ${{ github.ref_name }}
+            ## 🎉 新版本发布 ${{ steps.get-tag.outputs.tag }}
 
             ### 📦 下载链接
             - **Windows**: 下载 `.exe` 文件
@@ -112,12 +128,6 @@ jobs:
 
             ---
 
-            **完整更新日志**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.ref_name }}
-          files: |
-            artifacts/macos-build/*.dmg
-            artifacts/windows-build/*.exe
-            artifacts/linux-build/*.AppImage
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            **完整更新日志**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ steps.get-tag.outputs.tag }}
+          artifacts: 'release/*.exe,release/*.zip,release/*.dmg,release/*.AppImage,release/*.snap,release/*.deb,release/*.rpm,release/*.tar.gz,release/latest*.yml,release/*.blockmap'
+          token: ${{ secrets.GITHUB_TOKEN }}

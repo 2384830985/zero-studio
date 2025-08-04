@@ -24,6 +24,9 @@
     "quality-check": "./scripts/quality-check.sh",
     "test:dev": "./scripts/test-dev.sh",
     "cleanup": "./scripts/cleanup.sh",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
     "prepare": "husky"
   },
   "dependencies": {
