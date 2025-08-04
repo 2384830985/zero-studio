@@ -84,3 +84,29 @@ eslint-report.json
 # Package lock files (choose one)
 # package-lock.json
 # yarn.lock
+
+# Electron specific
+app/
+out/
+*.asar
+
+# Environment files
+.env.pro
+.env.local
+.env.*.local
+
+# Test files
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.vite/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
