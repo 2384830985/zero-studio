@@ -8,8 +8,7 @@ import { BaseCallbackHandler } from '@langchain/core/callbacks/base'
 import { McpServer } from '../../../mcp/mcp-server'
 import { getExhibitionTEXT, getExhibitionTOOLS, IExhibitionCon } from '../../utils'
 import {ResponseBuilder} from '../response/ResponseBuilder'
-import {BaseMessage} from '@langchain/core/dist/messages/base'
-import {DynamicStructuredTool} from '@langchain/core/dist/tools'
+import {BaseMessage} from '@langchain/core/messages'
 
 
 // 定义步骤回调类型
@@ -339,14 +338,14 @@ export class LangGraphReActAgent {
   /**
    * 创建工具包装器
    */
-  private createToolWrappers(): { tools: DynamicStructuredTool<any>[]; toolsPrompt: string } {
+  private createToolWrappers(): { tools: DynamicTool<any>[]; toolsPrompt: string } {
     let toolsPrompt = ''
 
     const tools = McpServer.langchainTools.map(toolItem => {
     // # Tool_Name: Addition
     // # Tool_Description: useful when to add two numbers
     // # Tool_Input: {{"a": integer, "b": integer}}
-      let input = JSON.stringify(toolItem?.schema?.properties || '}')
+      let input = JSON.stringify((toolItem?.schema as any)?.properties || '}')
 
       input = input.replace(/\{/g, '{{')
       input = input.replace(/}/g, '}}')

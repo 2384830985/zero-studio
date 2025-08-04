@@ -546,6 +546,7 @@ const addModel = (service: any) => {
 }
 
 const toggleModel = (service: any, model: any) => {
+  console.log('toggleModel service', service)
   model.enabled = !model.enabled
   message.success(`模型 ${model.name} 已${model.enabled ? '启用' : '禁用'}`)
 }

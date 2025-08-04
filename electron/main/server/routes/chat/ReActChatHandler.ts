@@ -1,7 +1,5 @@
 import { BrowserWindow } from 'electron'
 import { ChatHandler } from './ChatHandler'
-import { CommunicationRole } from '../../../mcp'
-import { generateId } from '../../utils/helpers'
 import {LangGraphReActAgent, LangGraphReActConfig, LangGraphTool} from '../../services/react-agent'
 import {McpServer} from '../../../mcp/mcp-server'
 
@@ -13,8 +11,9 @@ export class ReActChatHandler extends ChatHandler {
   /**
    * 处理 ReAct 聊天发送
    */
-  async handleChatReActSend(_, object: string) {
+  async handleChatReActSend(_: any, object: string) {
     try {
+      console.log('handleChatReActSend _', _)
       const req = JSON.parse(object)
       const { content, metadata = {}, conversationId = '', oldMessage } = req
 
@@ -74,24 +73,4 @@ export class ReActChatHandler extends ChatHandler {
     }
   }
 
-  /**
-   * 创建步骤回调函数
-   */
-  private createStepCallback(conversationId: string, metadata: any) {
-    return (step: any) => {
-      console.log(`[${step.type}] ${step.content}`)
-
-      // 发送步骤消息
-      this.communication.setMessage({
-        content: '',
-        conversationId: conversationId,
-        message: {
-          id: generateId(),
-          role: CommunicationRole.ASSISTANT,
-          content: step.content,
-          metadata,
-        },
-      })
-    }
-  }
 }

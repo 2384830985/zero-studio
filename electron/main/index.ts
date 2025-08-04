@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, protocol } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
@@ -86,6 +86,8 @@ async function createWindow() {
     webPreferences: {
       devTools: true,
       preload,
+      webSecurity: false, // 在生产环境中允许加载本地资源
+      allowRunningInsecureContent: true,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
       // nodeIntegration: true,
 
@@ -99,6 +101,7 @@ async function createWindow() {
     log('VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
     // 添加错误处理和重试机制
     win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+      console.log('event', event, errorCode, errorDescription)
       // 如果是开发服务器连接失败，尝试重新加载
       if (validatedURL === VITE_DEV_SERVER_URL) {
         console.log('Retrying to load development server...')
@@ -112,17 +115,36 @@ async function createWindow() {
     win.webContents.openDevTools()
   } else {
     log('NO VITE_DEV_SERVER_URL: ', VITE_DEV_SERVER_URL)
-    log('Environment variables:', {
-      NODE_ENV: process.env.NODE_ENV,
-      ELECTRON: process.env.ELECTRON,
-      VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL,
-    })
+    log('Loading index.html from:', indexHtml)
+    log('RENDERER_DIST:', RENDERER_DIST)
+
+    // 确保使用正确的路径
     win.loadFile(indexHtml)
   }
 
   // Test actively push message to the Electron-Renderer
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', new Date().toLocaleString())
+    console.log('✅ Page finished loading')
+  })
+
+  // 添加错误监听
+  win.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
+    console.error('❌ Page failed to load:', {
+      errorCode,
+      errorDescription,
+      validatedURL,
+    })
+  })
+
+  // 监听控制台消息
+  win.webContents.on('console-message', (_, level, message, line, sourceId) => {
+    console.log(`Console [${level}]: ${message} (${sourceId}:${line})`)
+  })
+
+  // 监听 DOM 准备完成
+  win.webContents.on('dom-ready', () => {
+    console.log('✅ DOM is ready')
   })
 
   // Make all links open with the browser, not with the application
@@ -133,8 +155,14 @@ async function createWindow() {
 
   registerIpc(win, app)
 }
-console.log('📱 Registering app.whenReady() callback...')
+// 注册自定义协议以处理本地文件
 app.whenReady().then(async () => {
+  // 注册 file 协议处理器
+  protocol.registerFileProtocol('file', (request, callback) => {
+    const pathname = decodeURI(request.url.replace('file:///', ''))
+    callback(pathname)
+  })
+
   console.log('✅ Electron app is ready! Creating window...')
   await createWindow()
 })

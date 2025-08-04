@@ -1,7 +1,7 @@
 import {McpServer} from '../../mcp/mcp-server'
 import {getModel, IMetadata} from '../llm'
 import {IMessageMetadata} from '../types'
-import {BaseMessage} from '@langchain/core/dist/messages/base'
+import {BaseMessage} from '@langchain/core/messages'
 import {LangChainToolCallProcessor} from './langchain/LangChainToolCallProcessor'
 import {InputValidator} from './validation/InputValidator'
 import {ResponseBuilder} from './response/ResponseBuilder'

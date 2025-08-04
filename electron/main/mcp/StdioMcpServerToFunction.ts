@@ -110,9 +110,6 @@ export class StdioMcpClientToFunction {
   /** 单例实例 */
   private static instance: StdioMcpClientToFunction
 
-  /** 当前使用的 MCP 服务器配置 */
-  private currentEnabledServers: EnabledMCPServer[] = []
-
   /**
    * 私有构造函数
    *
@@ -120,7 +117,6 @@ export class StdioMcpClientToFunction {
    */
   private constructor(enabledMCPServers: EnabledMCPServer[]) {
     this.config = this.createConfigFromEnabledServers(enabledMCPServers)
-    this.currentEnabledServers = enabledMCPServers
   }
 
   get clientTools () {
@@ -153,7 +149,6 @@ export class StdioMcpClientToFunction {
 
     // 重新设置配置
     this.config = this.createConfigFromEnabledServers(enabledMCPServers)
-    this.currentEnabledServers = enabledMCPServers
 
     // 重新初始化连接
     this.initializeMcpServerConnections()

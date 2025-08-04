@@ -1,7 +1,7 @@
 import { McpServer } from '../../mcp/mcp-server'
 
 export class MCPServerTools {
-  static async handleConnectMCPSend (_, object) {
+  static async handleConnectMCPSend (_: any, object: any) {
     try {
       const response = JSON.parse(object)
       const { enabledMCPServers } = response

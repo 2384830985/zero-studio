@@ -24,11 +24,13 @@ export class Chat {
    * @param object
    * @private
    */
-  async handleChatReactSend(_, object) {
+  async handleChatReactSend(_: any, object: any) {
+    console.log('handleChatReactSend _', _)
     return this.reActHandler.handleChatReActSend(_, object)
   }
 
-  async handleChatPlanSend(_, object) {
+  async handleChatPlanSend(_: any, object: any) {
+    console.log('handleChatPlanSend _', _)
     return this.planHandler.handleChatPlanSend(_, object)
   }
 
@@ -38,7 +40,7 @@ export class Chat {
    * @param object
    * @private
    */
-  async handleChatSend(_, object) {
+  async handleChatSend(_: any, object: any) {
     return this.standardHandler.handleChatSend(_, object)
   }
 }

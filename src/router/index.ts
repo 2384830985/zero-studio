@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import ChatView from '../views/chat/index.vue'
 import TranslateView from '../views/translate/index.vue'
@@ -115,7 +115,9 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: process.env.NODE_ENV === 'production' || window.location.protocol === 'file:'
+    ? createWebHashHistory()
+    : createWebHistory(),
   routes,
 })
 

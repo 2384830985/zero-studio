@@ -13,8 +13,9 @@ export class PlanChatHandler extends ChatHandler {
   /**
    * 处理计划聊天发送
    */
-  async handleChatPlanSend(_, object: string) {
+  async handleChatPlanSend(_: any, object: string) {
     try {
+      console.log('handleChatPlanSend _', _)
       const { content, conversationId, metadata = {} } = JSON.parse(object)
 
       // 验证内容

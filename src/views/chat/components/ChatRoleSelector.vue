@@ -72,12 +72,6 @@
                 <h4 class="font-medium text-gray-900 text-xs truncate">
                   {{ role.name }}
                 </h4>
-                <span
-                  v-if="role.isBuiltIn"
-                  class="text-xs px-1 py-0.5 bg-blue-100 text-blue-600 rounded text-xs"
-                >
-                  内置
-                </span>
                 <div
                   v-if="!role.isEnabled"
                   class="w-1.5 h-1.5 bg-gray-300 rounded-full"

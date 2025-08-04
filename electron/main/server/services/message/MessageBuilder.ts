@@ -1,5 +1,5 @@
 import {AIMessage, HumanMessage, ToolMessage} from '@langchain/core/messages'
-import {BaseMessage} from '@langchain/core/dist/messages/base'
+import {BaseMessage} from '@langchain/core/messages'
 
 /**
  * 消息构建器

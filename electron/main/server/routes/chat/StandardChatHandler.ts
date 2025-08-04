@@ -1,8 +1,9 @@
 import { BrowserWindow } from 'electron'
+import { BaseMessage } from '@langchain/core/messages'
+
 import { ChatHandler } from './ChatHandler'
-import { AIGCService } from '../../services/AIGCService'
+import { AIGCService } from '../../services'
 import { IMessageMetadata } from '../../types'
-import { BaseMessage } from '@langchain/core/dist/messages/base'
 
 export class StandardChatHandler extends ChatHandler {
   private aigcService: AIGCService
@@ -15,8 +16,9 @@ export class StandardChatHandler extends ChatHandler {
   /**
    * 处理标准聊天发送
    */
-  async handleChatSend(_, object: string) {
+  async handleChatSend(_: any, object: string) {
     try {
+      console.log('handleChatSend _', _)
       const response = JSON.parse(object)
       const { content, conversationId, metadata = {}, oldMessage } = response
 

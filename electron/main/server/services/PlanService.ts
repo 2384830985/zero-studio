@@ -1,7 +1,9 @@
+import {BrowserWindow} from 'electron'
+
 import { PlanAndExecuteAgent, ExecutionPlan, PlanStep } from '../../plan-and-execute'
 import { MCPMessage } from '../types'
 import { generateId } from '../utils/helpers'
-import {BrowserWindow} from 'electron'
+import {CommunicationRole} from '../../mcp'
 
 /**
  * 计划执行服务类
@@ -168,7 +170,7 @@ export class PlanService {
       // 发送最终消息
       const finalMessage: MCPMessage = {
         id: assistantMessageId,
-        role: 'assistant',
+        role: CommunicationRole.ASSISTANT,
         content: currentContent,
         timestamp: Date.now(),
         metadata: {
@@ -196,7 +198,7 @@ export class PlanService {
       // 发送错误消息
       const errorMessage: MCPMessage = {
         id: generateId(),
-        role: 'assistant',
+        role: CommunicationRole.ASSISTANT,
         content: `❌ **计划执行失败**: ${error instanceof Error ? error.message : '未知错误'}`,
         timestamp: Date.now(),
         metadata: { ...metadata, planId: plan.id, error: true },

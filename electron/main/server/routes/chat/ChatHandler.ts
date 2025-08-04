@@ -1,9 +1,10 @@
 import { BrowserWindow } from 'electron'
+import {BaseMessage} from '@langchain/core/messages'
+import {AIMessage, HumanMessage, SystemMessage} from '@langchain/core/messages'
+
 import { IMessageMetadata, MCPMessage } from '../../types'
 import { Communication, CommunicationRole } from '../../../mcp'
 import { generateId } from '../../utils/helpers'
-import {BaseMessage} from '@langchain/core/dist/messages/base'
-import {AIMessage, HumanMessage, SystemMessage} from '@langchain/core/messages'
 
 export abstract class ChatHandler {
   protected win: BrowserWindow

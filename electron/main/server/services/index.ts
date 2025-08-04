@@ -1,7 +1,6 @@
 // 主要服务
 export { AIGCService } from './AIGCService'
 export { PlanService } from './PlanService'
-export { ReActService } from './ReActService'
 
 // 工具调用相关
 export { ToolCallHandler } from './tool-call/ToolCallHandler'
