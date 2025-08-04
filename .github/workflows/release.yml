@@ -80,7 +80,7 @@ jobs:
         run: |
           yarn build
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
 
@@ -91,7 +91,7 @@ jobs:
           yarn build
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
 
@@ -101,7 +101,7 @@ jobs:
           yarn build
         env:
           CSC_LINK: ''
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
 
@@ -130,4 +130,4 @@ jobs:
 
             **完整更新日志**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ steps.get-tag.outputs.tag }}
           artifacts: 'release/*.exe,release/*.zip,release/*.dmg,release/*.AppImage,release/*.snap,release/*.deb,release/*.rpm,release/*.tar.gz,release/latest*.yml,release/*.blockmap'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GIT_TOKEN }}
