@@ -1,4 +1,4 @@
-# 🎭 Big Brother Studio
+# 🎭 zero studio
 
 一个基于 Electron + Vue 3 + TypeScript 构建的现代化桌面应用程序，集成了 AI 对话、文档处理和多种实用工具。
 
@@ -250,7 +250,7 @@ ELECTRON=1
 
 **如何获取商业授权？**
 1. 通过 [GitHub Issues](https://github.com/2384830985/zero-studio/issues) 创建授权申请
-2. 发送邮件至：[your-email@example.com]
+2. 发送邮件至：[764506248@qq.com]
 3. 说明你的使用场景和需求
 
 **授权优势**
