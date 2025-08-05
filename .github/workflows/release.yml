@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write
+  actions: read
+  security-events: write
 
 jobs:
   release:
@@ -38,8 +40,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
+          elif [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Invalid trigger or ref"
+            exit 1
           fi
 
       - name: 步骤3：安装Node.js环境
@@ -142,4 +147,4 @@ jobs:
 
             **完整更新日志**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ steps.get-tag.outputs.tag }}
           artifacts: 'release/*.exe,release/*.zip,release/*.dmg,release/*.AppImage,release/*.snap,release/*.deb,release/*.rpm,release/*.tar.gz,release/latest*.yml,release/*.blockmap'
-          token: ${{ secrets.GIT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
