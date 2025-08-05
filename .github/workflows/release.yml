@@ -55,9 +55,9 @@ jobs:
       - name: 步骤5：启用Yarn包管理
         run: corepack enable && corepack prepare yarn@stable --activate
 
-      - name: 步骤6：缓存优化（减少重复安装时间）
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+#      - name: 步骤6：缓存优化（减少重复安装时间）
+#        id: yarn-cache-dir-path
+#        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
 
       - name: Cache yarn dependencies
         uses: actions/cache@v4
