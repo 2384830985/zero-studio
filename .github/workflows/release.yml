@@ -10,6 +10,9 @@ on:
   push:
     tags:
       - v*.*.*
+  # push: # 修改后的触发条件
+  #   branches: # 可指定分支（按需调整）
+  #     - main
 
 permissions:
   contents: write
@@ -29,10 +32,10 @@ jobs:
       - name: 步骤1：获取代码（包含完整git历史）
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # 获取全部提交历史（必需获取tag信息）[1](@ref)
 
       - name: 步骤2：动态获取Release标签
-        id: get-tag
+        id: get-tag # 步骤ID，用于后续引用
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -44,11 +47,11 @@ jobs:
       - name: 步骤3：安装Node.js环境
         uses: actions/setup-node@v4
         with:
-          node-version: '22.12.0'
+          node-version: '22.12.0' # 固定Node版本保证一致性
 
       - name: 步骤4：macOS专属依赖修复
-        if: matrix.os == 'macos-latest'
-        run: |
+        if: matrix.os == 'macos-latest'  # 条件执行：仅macOS生效
+        run: |  # 解决macOS常见构建依赖问题
           brew install python-setuptools
 
       - name: 步骤5：安装指定版本Yarn
@@ -79,6 +82,20 @@ jobs:
           echo "ELECTRON=1" >> .env.pro
         shell: bash
 
+      # 调试步骤：检查 GITHUB_TOKEN 是否存在
+      - name: Debug - 检查 GITHUB_TOKEN
+        run: |
+          if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
+            echo "✅ GITHUB_TOKEN 存在"
+            echo "Token 长度: ${#GITHUB_TOKEN}"
+            echo "Token 前缀: ${GITHUB_TOKEN:0:7}..."
+          else
+            echo "❌ GITHUB_TOKEN 不存在"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 步骤9-11：多平台构建（各平台独立配置）
       # Linux构建（Ubuntu）
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
