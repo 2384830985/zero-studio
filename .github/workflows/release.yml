@@ -69,8 +69,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
-      - name: 步骤7：安装项目依赖
-        run: yarn install
+      - name: 步骤7：清理PnP文件并安装依赖
+        run: |
+          # 清理可能存在的 PnP 文件
+          rm -f .pnp.cjs .pnp.loader.mjs
+          rm -rf .yarn/cache .yarn/unplugged
+          # 安装依赖
+          yarn install
 
       - name: 步骤8：配置生产环境变量
         run: |
