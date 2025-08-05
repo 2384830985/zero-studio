@@ -111,7 +111,6 @@
       "dist/**/*"
     ],
     "asar": false,
-    "publish": null,
     "win": {
       "target": "nsis"
     },
