@@ -3361,6 +3361,7 @@ __metadata:
     vue-router: "npm:^4.5.1"
     vue-tsc: "npm:^2.0.0"
     wait-on: "npm:^8.0.3"
+    zod: "npm:^3.23.8"
   languageName: unknown
   linkType: soft
 
