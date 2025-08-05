@@ -10,9 +10,6 @@ on:
   push:
     tags:
       - v*.*.*
-  # push: # 修改后的触发条件
-  #   branches: # 可指定分支（按需调整）
-  #     - main
 
 permissions:
   contents: write
@@ -32,10 +29,10 @@ jobs:
       - name: 步骤1：获取代码（包含完整git历史）
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # 获取全部提交历史（必需获取tag信息）[1](@ref)
+          fetch-depth: 0
 
       - name: 步骤2：动态获取Release标签
-        id: get-tag # 步骤ID，用于后续引用
+        id: get-tag
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -47,11 +44,11 @@ jobs:
       - name: 步骤3：安装Node.js环境
         uses: actions/setup-node@v4
         with:
-          node-version: '22.12.0' # 固定Node版本保证一致性
+          node-version: '22.12.0'
 
       - name: 步骤4：macOS专属依赖修复
-        if: matrix.os == 'macos-latest'  # 条件执行：仅macOS生效
-        run: |  # 解决macOS常见构建依赖问题
+        if: matrix.os == 'macos-latest'
+        run: |
           brew install python-setuptools
 
       - name: 步骤5：安装指定版本Yarn
@@ -73,9 +70,7 @@ jobs:
 
       - name: 步骤7：验证Yarn版本并安装依赖
         run: |
-          # 验证 Yarn 版本
           yarn --version
-          # 安装依赖
           yarn install --frozen-lockfile
 
       - name: 步骤8：配置生产环境变量
@@ -84,14 +79,13 @@ jobs:
           echo "ELECTRON=1" >> .env.pro
         shell: bash
 
-      # 步骤9-11：多平台构建（各平台独立配置）
       # Linux构建（Ubuntu）
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
           yarn build
         env:
-          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
 
@@ -102,8 +96,8 @@ jobs:
           sudo -H pip install setuptools
           yarn build
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false   # 禁用自动证书发现（需自行配置签名）
-          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
 
@@ -114,7 +108,7 @@ jobs:
           yarn build
         env:
           CSC_LINK: ''
-          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
 
@@ -144,4 +138,4 @@ jobs:
 
             **完整更新日志**: https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ steps.get-tag.outputs.tag }}
           artifacts: 'release/*.exe,release/*.zip,release/*.dmg,release/*.AppImage,release/*.snap,release/*.deb,release/*.rpm,release/*.tar.gz,release/latest*.yml,release/*.blockmap'
-          token: ${{ secrets.GIT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}

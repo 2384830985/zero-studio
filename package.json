@@ -1,7 +1,7 @@
 {
   "name": "big-brother-studio",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.1.0",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -111,6 +111,7 @@
       "dist/**/*"
     ],
     "asar": false,
+    "publish": null,
     "win": {
       "target": "nsis"
     },
