@@ -24,13 +24,13 @@ jobs:
       fail-fast: false
 
     steps:
-      - name: Check out Git repository
+      - name: 步骤1：获取代码（包含完整git历史）
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # 获取全部提交历史（必需获取tag信息）[1](@ref)
 
-      - name: Get release tag
-        id: get-tag
+      - name: 步骤2：动态获取Release标签
+        id: get-tag # 步骤ID，用于后续引用
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -39,20 +39,20 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Install Node.js
+      - name: 步骤3：安装Node.js环境
         uses: actions/setup-node@v4
         with:
-          node-version: '22.12.0'
+          node-version: '22.12.0' # 固定Node版本保证一致性
 
-      - name: macOS dependencies fix
-        if: matrix.os == 'macos-latest'
-        run: |
+      - name: 步骤4：macOS专属依赖修复
+        if: matrix.os == 'macos-latest'  # 条件执行：仅macOS生效
+        run: |  # 解决macOS常见构建依赖问题
           brew install python-setuptools
 
-      - name: Install corepack
+      - name: 步骤5：启用Yarn包管理
         run: corepack enable && corepack prepare yarn@stable --activate
 
-      - name: Get yarn cache directory path
+      - name: 步骤6：缓存优化（减少重复安装时间）
         id: yarn-cache-dir-path
         run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
 
@@ -66,8 +66,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
-      - name: Install Dependencies
-        run: yarn install
+      - name: 步骤7：安装项目依赖
+        run: yarn install --immutable
 
       - name: Create environment files
         run: |
