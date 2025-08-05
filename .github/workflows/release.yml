@@ -7,12 +7,12 @@ on:
         description: 'Release tag (e.g. v1.0.0)'
         required: true
         default: 'v1.0.0'
-#  push:
-#    tags:
-#      - v*.*.*
-  push: # 修改后的触发条件
-    branches: # 可指定分支（按需调整）
-      - main
+  push:
+    tags:
+      - v*.*.*
+  # push: # 修改后的触发条件
+  #   branches: # 可指定分支（按需调整）
+  #     - main
 
 permissions:
   contents: write
