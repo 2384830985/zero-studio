@@ -16,8 +16,6 @@ on:
 
 permissions:
   contents: write
-  actions: read
-  security-events: write
 
 jobs:
   release:
