@@ -80,19 +80,6 @@ jobs:
           echo "ELECTRON=1" >> .env.pro
         shell: bash
 
-      # 调试步骤：检查 GITHUB_TOKEN 是否存在
-      - name: Debug - 检查 GITHUB_TOKEN
-        run: |
-          if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "✅ GITHUB_TOKEN 存在"
-            echo "Token 长度: ${#GITHUB_TOKEN}"
-            echo "Token 前缀: ${GITHUB_TOKEN:0:7}..."
-          else
-            echo "❌ GITHUB_TOKEN 不存在"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       # 步骤9-11：多平台构建（各平台独立配置）
       # Linux构建（Ubuntu）
       - name: Build Linux
