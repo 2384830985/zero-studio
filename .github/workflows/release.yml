@@ -75,13 +75,8 @@ jobs:
         run: |
           # 验证 Yarn 版本
           yarn --version
-          # 配置 Electron 镜像源
-          yarn config set electron_mirror https://github.com/electron/electron/releases/download/
           # 安装依赖
           yarn install --frozen-lockfile
-        env:
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
-          ELECTRON_CUSTOM_DIR: "{{ version }}"
 
       - name: 步骤8：配置生产环境变量
         run: |
@@ -99,7 +94,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GIT_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
 
       # macOS构建（特殊处理签名）
       - name: Build Mac
@@ -108,11 +102,10 @@ jobs:
           sudo -H pip install setuptools
           yarn build
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false   # 禁用自动证书发现（需自行配置签名）
-          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
-          NODE_OPTIONS: --max-old-space-size=8192
+#          CSC_IDENTITY_AUTO_DISCOVERY: false   # 禁用自动证书发现（需自行配置签名）
+#          GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+#          NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
 
       # Windows构建（禁用代码签名）
       - name: Build Windows

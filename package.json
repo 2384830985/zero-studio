@@ -1,7 +1,7 @@
 {
   "name": "big-brother-studio",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
@@ -111,11 +111,6 @@
       "dist/**/*"
     ],
     "asar": false,
-    "electronDownload": {
-      "mirror": "https://github.com/electron/electron/releases/download/",
-      "customDir": "{{ version }}",
-      "timeout": 300000
-    },
     "win": {
       "target": "nsis"
     },
