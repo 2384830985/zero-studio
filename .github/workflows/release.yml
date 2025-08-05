@@ -102,7 +102,7 @@ jobs:
           sudo -H pip install setuptools
           yarn build
         env:
-#          CSC_IDENTITY_AUTO_DISCOVERY: false   # 禁用自动证书发现（需自行配置签名）
+          CSC_IDENTITY_AUTO_DISCOVERY: false   # 禁用自动证书发现（需自行配置签名）
           GH_TOKEN: ${{ secrets.GIT_TOKEN }}
 #          NODE_OPTIONS: --max-old-space-size=8192
           NODE_ENV: production
