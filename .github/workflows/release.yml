@@ -70,7 +70,7 @@ jobs:
             ${{ runner.os }}-yarn-
 
       - name: 步骤7：安装项目依赖
-        run: yarn install --immutable
+        run: yarn install
 
       - name: Create environment files
         run: |
