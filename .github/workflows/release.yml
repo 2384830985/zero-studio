@@ -52,12 +52,12 @@ jobs:
         run: |  # 解决macOS常见构建依赖问题
           brew install python-setuptools
 
-      - name: 步骤5：启用Yarn包管理
-        run: corepack enable && corepack prepare yarn@stable --activate
+      - name: 步骤5：安装指定版本Yarn
+        run: npm install -g yarn@1.22.22
 
-      - name: 步骤6：缓存优化（减少重复安装时间）
+      - name: 步骤6：获取Yarn缓存目录
         id: yarn-cache-dir-path
-        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
 
       - name: Cache yarn dependencies
         uses: actions/cache@v4
@@ -65,17 +65,16 @@ jobs:
           path: |
             ${{ steps.yarn-cache-dir-path.outputs.dir }}
             node_modules
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-yarn-v1-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-yarn-v1-
 
-      - name: 步骤7：清理PnP文件并安装依赖
+      - name: 步骤7：验证Yarn版本并安装依赖
         run: |
-          # 清理可能存在的 PnP 文件
-          rm -f .pnp.cjs .pnp.loader.mjs
-          rm -rf .yarn/cache .yarn/unplugged
+          # 验证 Yarn 版本
+          yarn --version
           # 安装依赖
-          yarn install
+          yarn install --frozen-lockfile
 
       - name: 步骤8：配置生产环境变量
         run: |
