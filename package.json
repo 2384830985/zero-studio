@@ -111,6 +111,11 @@
       "dist/**/*"
     ],
     "asar": false,
+    "electronDownload": {
+      "mirror": "https://github.com/electron/electron/releases/download/",
+      "customDir": "{{ version }}",
+      "timeout": 300000
+    },
     "win": {
       "target": "nsis"
     },
