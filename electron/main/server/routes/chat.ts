@@ -25,12 +25,15 @@ export class Chat {
    * @private
    */
   async handleChatReactSend(_: any, object: any) {
-    console.log('handleChatReactSend _', _)
     return this.reActHandler.handleChatReActSend(_, object)
   }
 
+  /**
+   * 计划模式
+   * @param _
+   * @param object
+   */
   async handleChatPlanSend(_: any, object: any) {
-    console.log('handleChatPlanSend _', _)
     return this.planHandler.handleChatPlanSend(_, object)
   }
 

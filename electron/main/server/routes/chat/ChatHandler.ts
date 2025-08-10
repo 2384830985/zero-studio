@@ -27,6 +27,7 @@ export abstract class ChatHandler {
       id: generateId(),
       role: CommunicationRole.USER,
       content: content.trim(),
+      timestamp: Date.now(),
       metadata,
     }
 
@@ -54,6 +55,7 @@ export abstract class ChatHandler {
         role: CommunicationRole.ASSISTANT,
         content,
         contentLimited: additionalData?.contentLimited,
+        timestamp: Date.now(),
         metadata: {
           ...metadata,
           ...additionalData?.metadata,
