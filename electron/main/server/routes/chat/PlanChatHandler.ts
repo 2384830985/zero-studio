@@ -38,7 +38,9 @@ export class PlanChatHandler extends ChatHandler {
         input: content,
       }
 
-      this.involve(inputs, config, conversationId).then(async (response) => {
+      this.sendStreamingMessage('', conversationId, metadata)
+
+      this.involve(inputs, config).then(async (response) => {
         // 处理响应
         const fullContent = await this.processAIGCResponseContent(response, conversationId, metadata)
         // 发送完整消息

@@ -283,10 +283,23 @@ const formatTime = (timestamp: number) => {
 
 // 格式化消息内容
 const formatMessage = (content: string) => {
-  if (typeof content !== 'string') {
-    return '返回数据错误'
+  try {
+    // 检测是否已经是HTML内容
+    if (/<[a-z][\s\S]*>/i.test(content)) {
+      // 直接返回原始HTML，避免双重解析
+      return content
+    }
+    content = `<p>${content}</p>`
+    const str = md.render(content)
+    console.log( 'content', content, 'str', typeof str, str)
+    if (typeof content !== 'string') {
+      return '返回数据错误'
+    }
+    return str
+  } catch (e) {
+    console.error('Markdown渲染失败', e)
+    return `<pre>${md.utils.escapeHtml(content)}</pre>` // 回退为纯文本
   }
-  return md.render(content)
 }
 
 // 滚动到底部

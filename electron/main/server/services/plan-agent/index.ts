@@ -126,10 +126,12 @@ export class PlanAgent extends ToolsHandler {
     const input = {
       messages: [new HumanMessage(task)],
     }
-    console.log('[input]', task)
+    // 添加当前步骤到 memory（在开始执行前）
+    this.memory.push(getExhibitionTEXT(`[开始执行步骤]: ${task}`))
+    console.log('[开始执行步骤]', task)
     const { messages } = await this.agentExecutor.invoke(input, config)
 
-    console.log('[messages]', JSON.stringify(messages, null, 2))
+    console.log('[执行结果]', JSON.stringify(messages, null, 2))
 
     messages.forEach((message, index) => {
       // tool 结果不进行操作
@@ -182,6 +184,8 @@ export class PlanAgent extends ToolsHandler {
   async planStep(
     state: typeof PlanExecuteState.State,
   ): Promise<Partial<typeof PlanExecuteState.State>> {
+    // 添加计划开始说明
+    this.memory.push(getExhibitionTEXT(`[开始制定计划]: ${state.input}`))
     const response = await this.llm.invoke([
       new SystemMessage(`针对给定目标，制定一个简单的分步计划。
 该计划应包含各个任务。请勿添加多余的步骤。
@@ -196,27 +200,30 @@ ${this.toolsPrompt}
       new HumanMessage(state.input),
     ])
 
-    // 添加记忆
-    this.memory.push(getExhibitionTEXT(response.content))
     console.log('response.content', response.content)
 
     try {
-      // 解析LLM响应中的JSON
       const content = response.content as string
       const jsonMatch = content.match(/\{[\s\S]*\}/)
+      let steps: string[] = []
 
       if (jsonMatch) {
         const planData = JSON.parse(jsonMatch[0])
-        return { plan: planData.steps }
+        steps = planData.steps
       } else {
-        // 如果没有找到JSON，尝试从文本中提取步骤
-        const lines = content.split('\n').filter(line => line.trim())
-        const steps = lines.map(line => line.replace(/^\d+\.\s*/, '').trim()).filter(step => step)
-        return { plan: steps }
+        steps = content.split('\n')
+          .filter(line => line.trim())
+          .map(line => line.replace(/^\d+\.\s*/, '').trim())
+          .filter(step => step)
       }
+      // 添加清晰计划说明
+      const planText = `[生成的计划步骤]:\n${steps.map((s, i) => `${i+1}. ${s}`).join('\n')}`
+      this.memory.push(getExhibitionTEXT(planText))
+
+      return { plan: steps }
     } catch (error) {
-      console.error('Failed to parse plan:', error)
-      // 回退方案：将整个响应作为单个步骤
+      console.error('计划解析失败:', error)
+      this.memory.push(getExhibitionTEXT(`计划生成失败: ${JSON.stringify(error)}`))
       return { plan: [response.content as string] }
     }
   }
@@ -224,23 +231,31 @@ ${this.toolsPrompt}
   async rePlanStep(
     state: typeof PlanExecuteState.State,
   ): Promise<Partial<typeof PlanExecuteState.State>> {
+    // 添加重新计划说明
+    this.memory.push(getExhibitionTEXT('[开始重新评估计划]'))
+
     const output = await this.replanner.invoke({
       input: state.input,
       plan: state.plan.join('\n'),
-      pastSteps: state.pastSteps
-        .map(([step, result]) => `${step}: ${result}`)
-        .join('\n'),
+      pastSteps: state.pastSteps.map(([step, result]) => `${step}: ${result}`).join('\n'),
     })
-    const toolCall = output[0]
 
-    console.log('[toolCall]', toolCall)
+    const toolCall = output[0]
+    console.log('[重新计划结果]', toolCall)
 
     if (toolCall.type === 'response') {
-      this.memory.push(getExhibitionTEXT(toolCall.args?.response))
+      const responseText = `[直接回复用户]: \n${toolCall.args?.response}`
+      this.memory.push(getExhibitionTEXT(responseText))
       return { response: toolCall.args?.response }
     }
 
-    return { plan: toolCall.args?.steps }
+    if (toolCall.type === 'plan') {
+      const newPlanText = `[更新的计划步骤]:\n${toolCall.args?.steps.join('\n')}`
+      this.memory.push(getExhibitionTEXT(newPlanText))
+      return { plan: toolCall.args?.steps }
+    }
+
+    return state
   }
 
   shouldEnd(state: typeof PlanExecuteState.State) {
