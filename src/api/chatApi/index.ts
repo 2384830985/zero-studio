@@ -15,3 +15,7 @@ export const ConnectMCPApi = async (params: { enabledMCPServers: Partial<MCPServ
 export const ConnectReActApi = async (params: IChatParams) => {
   return ipcRenderer(IpcChannel.CHAT_REACT, params)
 }
+
+export const InputResponseApi = async (params: { content: string, requestId: string }) => {
+  return ipcRenderer(IpcChannel.USER_INPUT_RESPONSE, params)
+}

@@ -1,5 +1,7 @@
 <template>
   <div class="flex-1 flex flex-col">
+    <!-- 用户输入请求弹窗 -->
+    <UserInputRequest />
     <!-- 消息列表 -->
     <div
       ref="messagesContainer"
@@ -194,6 +196,7 @@ import {
 } from '@ant-design/icons-vue'
 import ExecutionEnvironment from '@/components/common/ExecutionEnvironment.vue'
 import KnowledgeBaseSelector from '@/components/common/KnowledgeBaseSelector.vue'
+import UserInputRequest from '@/components/common/UserInputRequest.vue'
 import MCPToolDisplay from './MCPToolDisplay.vue'
 import type {MCPMessage} from '../chat.type'
 import MarkdownIt from 'markdown-it'

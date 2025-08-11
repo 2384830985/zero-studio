@@ -1,4 +1,4 @@
-import {BrowserWindow} from 'electron'
+import {BrowserWindow, ipcMain} from 'electron'
 import { Annotation } from '@langchain/langgraph'
 import {HumanMessage, SystemMessage} from '@langchain/core/messages'
 import { createReactAgent } from '@langchain/langgraph/prebuilt'
@@ -8,11 +8,13 @@ import { JsonOutputToolsParser } from '@langchain/core/output_parsers/openai_too
 import { tool } from '@langchain/core/tools'
 import { END, START, StateGraph } from '@langchain/langgraph'
 import { RunnableConfig } from '@langchain/core/runnables'
+import { DynamicStructuredTool } from '@langchain/core/tools'
 
 import {Communication} from '../../../mcp'
 import {getModel, IMetadata} from '../../llm'
 import {ToolsHandler} from '../../routes/chat/ToolsHandler'
 import {getExhibitionTEXT, getExhibitionTOOLS, IExhibitionCon} from '../../utils'
+import {IpcChannel} from '../../../IpcChannel'
 
 // 定义当前状态
 const PlanExecuteState = Annotation.Root({
@@ -35,19 +37,56 @@ export class PlanAgent extends ToolsHandler {
   private communication: Communication
   public workFlow
   private replanner
-  private win: BrowserWindow
   private agentExecutor
   private planObject
   public memory: IExhibitionCon[] = []
+  private userInteractionTools: DynamicStructuredTool[] = []
+  private pendingUserInputs = new Map<string, (response: string) => void>() // 管理待处理的用户输入请求
+
   constructor(win: BrowserWindow) {
     super()
-    this.win = win
     this.communication = new Communication(win)
 
     this.planObject = z.object({
       steps: z
         .array(z.string())
         .describe('different steps to follow, should be in sorted order'),
+    })
+
+    // 初始化用户交互工具
+    this.initUserInteractionTools()
+
+    // 初始化持久的用户输入监听器
+    this.initUserInputListener()
+  }
+
+  /**
+   * 初始化持久的用户输入监听器
+   */
+  private initUserInputListener() {
+    // 只在构造函数中注册一次监听器
+    ipcMain.handle(IpcChannel.USER_INPUT_RESPONSE, (event: any, data: any) => {
+      try {
+        console.log('收到用户输入响应:', data)
+        const responseData = typeof data === 'string' ? JSON.parse(data) : data
+        const { requestId, content } = responseData
+
+        // 查找对应的请求处理器
+        const resolver = this.pendingUserInputs.get(requestId)
+        if (resolver) {
+          // 移除已处理的请求
+          this.pendingUserInputs.delete(requestId)
+          // 解析 Promise
+          resolver(content)
+          return content // 返回给前端
+        } else {
+          console.warn(`未找到对应的用户输入请求: ${requestId}`)
+          return '请求已过期或不存在'
+        }
+      } catch (error) {
+        console.error('[用户输入处理错误]', error)
+        return '处理用户输入时发生错误'
+      }
     })
   }
 
@@ -58,11 +97,84 @@ export class PlanAgent extends ToolsHandler {
     this.initWorkflow()
   }
 
+  /**
+   * 初始化用户交互工具
+   */
+  private initUserInteractionTools() {
+
+    // 通用用户输入工具
+    const userInputTool = new DynamicStructuredTool({
+      name: 'get_user_input',
+      description: '当你需要获取用户的任何输入信息时使用此工具，需要什么信息的时候使用此工具，一次只能使用一个当前的工具。',
+      schema: z.object({
+        prompt: z.string().describe('向用户请求信息的提示文本'),
+      }),
+      func: async ({ prompt }) => {
+        // 添加提示到 memory 中
+        this.memory.push(getExhibitionTEXT(`[请求用户输入]:  提示 - ${prompt}`))
+
+        // 在实际应用中，这里应该通过 communication 向前端发送请求
+        // 并等待用户响应，这里简化为直接返回一个模拟响应
+        const response = await this.requestUserInput(prompt)
+        return response
+      },
+    })
+
+    // 将工具添加到工具列表中
+    this.userInteractionTools = [
+      userInputTool,
+    ]
+  }
+
+  /**
+   * 请求用户输入
+   * @param prompt 提示文本
+   * @returns 用户输入的响应
+   */
+  private async requestUserInput(prompt: string): Promise<string> {
+    console.log(`[向用户请求输入] 提示: ${prompt}`)
+
+    // 创建一个唯一的请求ID
+    const requestId = `user_input_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+
+    // 创建一个Promise，在用户响应时解析
+    const userResponsePromise = new Promise<string>((resolve) => {
+      // 将解析器存储到 Map 中
+      this.pendingUserInputs.set(requestId, resolve)
+
+      // 设置超时（可选，防止无限等待）
+      setTimeout(() => {
+        // 检查请求是否还在等待中
+        if (this.pendingUserInputs.has(requestId)) {
+          this.pendingUserInputs.delete(requestId)
+          const fallbackResponse = '用户未提供的信息（超时）'
+          resolve(fallbackResponse)
+        }
+      }, 60000) // 60秒超时
+    })
+
+    // 向前端发送请求
+    this.communication.sendUserInputRequest({
+      requestId,
+      prompt,
+    })
+
+    // 等待用户响应
+    const response = await userResponsePromise
+
+    // 添加用户响应到 memory 中
+    this.memory.push(getExhibitionTEXT(`[用户响应]: ${response}`))
+
+    return response
+  }
+
   initAgent(metadata: IMetadata){
     this.llm = getModel(metadata as IMetadata)
+    // 合并标准工具和用户交互工具
+    const allTools = [...this.tools, ...this.userInteractionTools]
     this.agentExecutor = createReactAgent({
       llm: this.llm,
-      tools: this.tools,
+      tools: allTools,
     })
   }
 
@@ -102,7 +214,7 @@ export class PlanAgent extends ToolsHandler {
 您目前已完成以下步骤：
 {pastSteps}
 
-请相应地更新您的计划。如果不需要更多步骤，您可以返回给用户，请回复该步骤并使用“response”功能。
+请相应地更新您的计划。如果不需要更多步骤，您可以返回给用户，请回复该步骤并使用"response"功能。
 否则，请填写计划。
 仅向计划中添加仍需完成的步骤。不要将之前完成的步骤作为计划的一部分返回。`,
     )
