@@ -86,25 +86,4 @@ export class PlanChatHandler extends ChatHandler {
       console.error('迭代过程中出错:', error)
     }
   }
-
-  /**
-   * 格式化计划响应
-   */
-  private formatPlanResponse(plan: any[]): any {
-    return {
-      steps: plan.map((step, index) => ({
-        id: step.id,
-        order: index + 1,
-        title: step.title,
-        description: step.description,
-        action: step.action,
-        dependencies: step.dependencies,
-        status: step.status,
-        result: step.result,
-      })),
-      totalSteps: plan.length,
-      completedSteps: plan.filter(step => step.status === 'completed').length,
-      failedSteps: plan.filter(step => step.status === 'failed').length,
-    }
-  }
 }

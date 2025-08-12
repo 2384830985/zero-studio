@@ -32,10 +32,10 @@
       >
         <div
           :class="[
-            'max-w-[70%] rounded-2xl px-4 py-3',
+            'max-w-[70%] rounded-2xl px-4 py-3 bg-white text-gray-800 shadow-sm border border-gray-200',
             message.role === CommunicationRole.USER
-              ? 'bg-blue-500 text-white mr-2'
-              : 'bg-white text-gray-800 shadow-sm border border-gray-200 ml-2'
+              ? 'mr-2'
+              : 'ml-2'
           ]"
         >
           <template
@@ -66,8 +66,8 @@
           />
           <div
             :class="[
-              'text-xs mt-2 opacity-70',
-              message.role === CommunicationRole.USER ? 'text-right text-blue-100' : 'text-left text-gray-500'
+              'text-xs mt-2 opacity-70 text-gray-500',
+              message.role === CommunicationRole.USER ? 'text-right' : 'text-left'
             ]"
           >
             {{ formatTime(message.timestamp) }}
@@ -278,7 +278,10 @@ const md = new MarkdownIt({
 
 // 格式化时间
 const formatTime = (timestamp: number) => {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
+  return new Date(timestamp).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -287,18 +290,17 @@ const formatTime = (timestamp: number) => {
 // 格式化消息内容
 const formatMessage = (content: string) => {
   try {
+    content = md.render(content)
     // 检测是否已经是HTML内容
     if (/<[a-z][\s\S]*>/i.test(content)) {
       // 直接返回原始HTML，避免双重解析
       return content
     }
     content = `<p>${content}</p>`
-    const str = md.render(content)
-    console.log( 'content', content, 'str', typeof str, str)
     if (typeof content !== 'string') {
       return '返回数据错误'
     }
-    return str
+    return content
   } catch (e) {
     console.error('Markdown渲染失败', e)
     return `<pre>${md.utils.escapeHtml(content)}</pre>` // 回退为纯文本

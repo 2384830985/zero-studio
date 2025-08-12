@@ -189,7 +189,12 @@ export class PlanAgent extends ToolsHandler {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     const responseTool = tool(() => {}, {
       name: 'response',
-      description: 'Respond to the user.',
+      description: `
+    Provide your final, complete response to the user. Use this tool when:
+    - You have gathered all necessary information
+    - Analysis or planning is complete
+    - You're ready to deliver a comprehensive answer
+  `,
       schema: responseObject,
     })
 
@@ -201,22 +206,34 @@ export class PlanAgent extends ToolsHandler {
     })
 
     const plannerPrompt = ChatPromptTemplate.fromTemplate(
-      `针对给定的目标，制定一个简单的分步计划。
-该计划应包含各个任务，如果正确执行，将产生正确的答案。不要添加任何多余的步骤。
-最后一步的结果应为最终答案。确保每个步骤都包含所有必要的信息 - 不要跳过任何步骤。
+      `针对给定的目标，制定或更新一个分步计划。
 
-您的目标如下：
-{input}
+      **重要原则**：
+      - 优先保持原计划的连续性和稳定性
+      - 仅在必要时进行最小化调整
+      - 避免推翻已验证有效的步骤
 
-您的原始计划如下：
-{plan}
+      **目标**：
+      {input}
 
-您目前已完成以下步骤：
-{pastSteps}
+      **当前计划状态**：
+      原始计划：{plan}
+      已完成步骤：{pastSteps}
 
-请相应地更新您的计划。如果不需要更多步骤，您可以返回给用户，请回复该步骤并使用"response"功能。
-否则，请填写计划。
-仅向计划中添加仍需完成的步骤。不要将之前完成的步骤作为计划的一部分返回。`,
+      **更新规则**：
+      1. **计划完成检查**：如果所有关键步骤已完成，直接使用 "response" 功能返回最终结果
+      2. **步骤延续**：优先执行原计划中的下一个步骤，除非：
+         - 发现明显的逻辑错误
+         - 缺少关键信息导致无法继续
+         - 目标需求发生重大变化
+      3. **最小化修改**：如需调整，仅修改必要的部分，保持其他步骤不变
+      4. **渐进式推进**：专注于下一个具体可执行的步骤，避免重新规划整个流程
+
+      **输出要求**：
+      - 如果计划可以继续：列出下一个待执行步骤
+      - 如果需要微调：说明调整原因并提供修正后的步骤
+      - 如果已完成：直接返回最终结果，不要重新规划
+`,
     )
 
     const parser = new JsonOutputToolsParser()
@@ -353,7 +370,7 @@ ${this.toolsPrompt}
     })
 
     const toolCall = output[0]
-    console.log('[重新计划结果]', toolCall)
+    console.log('[重新计划结果]', toolCall, 'output', output)
 
     if (toolCall.type === 'response') {
       const responseText = `[直接回复用户]: \n${toolCall.args?.response}`
