@@ -2,6 +2,8 @@
 
 一个基于 Electron + Vue 3 + TypeScript 构建的现代化桌面应用程序，集成了 AI 对话、文档处理和多种实用工具。
 
+![示例](./docs/img.png)
+
 ## ✨ 特性
 
 - 🚀 **现代化技术栈**: Electron + Vue 3 + TypeScript + Vite
