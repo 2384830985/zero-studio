@@ -176,6 +176,9 @@ const connectToMCPServer = async () => {
         id: message.messageId,
         role: message.role,
         content: message.content,
+        contentLimited: {
+          cardList: message?.message?.content?.cardList || [],
+        },
         timestamp: message.timestamp,
       }
       scrollToBottom()
@@ -431,6 +434,7 @@ onMounted(() => {
 
   connectToMCPServer()
   loadServerStats()
+  scrollToBottom()
 
   // 每5秒更新一次统计信息
   // statsInterval = setInterval(() => {

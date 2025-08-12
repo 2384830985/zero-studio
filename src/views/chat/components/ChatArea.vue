@@ -87,17 +87,39 @@
         class="flex justify-start pl-2"
       >
         <div class="max-w-[70%] bg-white text-gray-800 shadow-sm border border-gray-200 rounded-2xl px-4 py-3 ml-2">
-          <div
-            class="text-sm leading-relaxed mb-2 break-all overflow-wrap-anywhere"
-            v-html="formatMessage(streamingMessage.content)"
-          />
-          <!-- MCP 工具调用显示 -->
-          <MCPToolDisplay
-            v-if="streamingMessage.metadata?.toolCalls || streamingMessage.metadata?.toolResults"
-            :tool-calls="streamingMessage.metadata?.toolCalls"
-            :tool-results="streamingMessage.metadata?.toolResults"
-            class="mb-3"
-          />
+          <template
+            v-if="!!streamingMessage?.contentLimited?.cardList?.length"
+          >
+            <template
+              v-for="card in streamingMessage?.contentLimited?.cardList"
+              :key="`${card.type}_${Date.now()}`"
+            >
+              <div
+                class="text-sm leading-relaxed mb-2 break-all overflow-wrap-anywhere"
+                v-html="formatMessage(card.content)"
+              />
+              <!-- MCP 工具调用显示 -->
+              <MCPToolDisplay
+                v-if="card.type === Exhibition.TOOLS"
+                :tool-calls="card.toolCalls"
+                :tool-results="card.toolResults"
+                class="mb-3"
+              />
+            </template>
+          </template>
+          <template v-else>
+            <div
+              class="text-sm leading-relaxed mb-2 break-all overflow-wrap-anywhere"
+              v-html="formatMessage(streamingMessage.content)"
+            />
+            <!-- MCP 工具调用显示 -->
+            <MCPToolDisplay
+              v-if="streamingMessage.metadata?.toolCalls || streamingMessage.metadata?.toolResults"
+              :tool-calls="streamingMessage.metadata?.toolCalls"
+              :tool-results="streamingMessage.metadata?.toolResults"
+              class="mb-3"
+            />
+          </template>
           <div class="text-xs mt-2 text-gray-500 flex items-center">
             <LoadingOutlined class="mr-1" />
             正在输入...

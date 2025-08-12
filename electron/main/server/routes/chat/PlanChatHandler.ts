@@ -38,9 +38,11 @@ export class PlanChatHandler extends ChatHandler {
         input: content,
       }
 
-      this.sendStreamingMessage('', conversationId, metadata)
+      const sendStreaming = (content: any) => this.sendStreamingMessage(content, conversationId, metadata)
 
-      this.involve(inputs, config).then(async (response) => {
+      sendStreaming('')
+
+      this.involve(inputs, config, sendStreaming).then(async (response) => {
         // 处理响应
         const fullContent = await this.processAIGCResponseContent(response, conversationId, metadata)
         // 发送完整消息
@@ -60,7 +62,7 @@ export class PlanChatHandler extends ChatHandler {
     }
   }
 
-  async involve(inputs, config) {
+  async involve(inputs, config, sendStreaming) {
     try {
       // 获取异步迭代器
       const asyncIterator = (await this.planAgent.workFlow.stream(inputs, config))[Symbol.asyncIterator]()
@@ -80,6 +82,14 @@ export class PlanChatHandler extends ChatHandler {
             [],
             this.planAgent.memory,
           )
+        } else {
+          sendStreaming(this.responseBuilder.buildToolCallResponse(
+            '',
+            '',
+            [],
+            [],
+            this.planAgent.memory,
+          ))
         }
       }
     } catch (error) {
