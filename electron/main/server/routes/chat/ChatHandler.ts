@@ -1,4 +1,6 @@
 import { BrowserWindow } from 'electron'
+import fs from 'fs'
+import path from 'path'
 import {BaseMessage} from '@langchain/core/messages'
 import {AIMessage, HumanMessage, SystemMessage} from '@langchain/core/messages'
 
@@ -9,6 +11,7 @@ import { generateId } from '../../utils/helpers'
 export abstract class ChatHandler {
   protected win: BrowserWindow
   protected communication: Communication
+  protected isInterrupted = false
 
   constructor(win: BrowserWindow) {
     this.win = win
@@ -130,6 +133,36 @@ export abstract class ChatHandler {
     }
   }
 
+  getPathDirectories (currentDir: string): { files: string[]; directories: string[] } | undefined {
+    try {
+      // 读取当前目录下的所有文件和文件夹（一级）
+      const items = fs.readdirSync(currentDir)
+
+      // 分类文件和文件夹
+      const result = {
+        files: [] as string[],
+        directories: [] as string[],
+      }
+
+      items.forEach(item => {
+        const fullPath = path.join(currentDir, item)
+        const isDirectory = fs.statSync(fullPath).isDirectory()
+
+        if (isDirectory) {
+          result.directories.push(item)
+        } else {
+          result.files.push(item)
+        }
+      })
+
+      console.log('当前目录内容:', result)
+      return result
+    } catch (err) {
+      console.error('读取目录出错:', err)
+      return undefined
+    }
+  }
+
   /**
    * 转换消息格式为 Langchain 格式
    */
@@ -138,8 +171,22 @@ export abstract class ChatHandler {
       switch (msg.role) {
       case CommunicationRole.USER:
         return new HumanMessage(msg.content)
-      case CommunicationRole.SYSTEM:
-        return new SystemMessage(msg.content)
+      case CommunicationRole.SYSTEM: {
+        const currentPath = process.cwd()
+        const pathStructure = this.getPathDirectories(currentPath)
+
+        return new SystemMessage(`
+         ${msg.content}
+         =====
+         当前的工作路径
+         path: ${currentPath}
+         =====
+         当前目录结构:
+         文件夹: ${pathStructure?.directories && pathStructure.directories.length > 0 ? pathStructure.directories.join(', ') : '无'}
+         文件: ${pathStructure?.files && pathStructure.files.length > 0 ? pathStructure.files.join(', ') : '无'}
+         =====
+        `)
+      }
       case CommunicationRole.ASSISTANT:
         return new AIMessage(msg.content)
       default:
@@ -225,5 +272,29 @@ export abstract class ChatHandler {
     }
 
     this.sendAssistantMessage(content, conversationId, metadata, additionalData)
+  }
+
+  /**
+   * 中断当前操作
+   */
+  async interrupt(): Promise<void> {
+    console.log(`[${this.constructor.name}] 收到中断请求`)
+    this.isInterrupted = true
+  }
+
+  /**
+   * 重置中断状态
+   */
+  protected resetInterruptState(): void {
+    this.isInterrupted = false
+  }
+
+  /**
+   * 检查是否被中断
+   */
+  protected checkInterrupted(): void {
+    if (this.isInterrupted) {
+      throw new Error('Operation was interrupted')
+    }
   }
 }

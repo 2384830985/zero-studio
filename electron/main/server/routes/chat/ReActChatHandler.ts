@@ -13,6 +13,9 @@ export class ReActChatHandler extends ChatHandler {
    */
   async handleChatReActSend(_: any, object: string) {
     try {
+      // 重置中断状态
+      this.resetInterruptState()
+
       console.log('handleChatReActSend _', _)
       const req = JSON.parse(object)
       const { content, metadata = {}, conversationId = '', oldMessage } = req
@@ -50,10 +53,13 @@ export class ReActChatHandler extends ChatHandler {
       //     this.sendAssistantMessage(content, conversationId, metadata)
       //   }
       // }
-
       // 创建流式发送函数
       const sendStreaming = () => {
         this.sendStreamingMessage('', conversationId, metadata)
+        if (this.isInterrupted) {
+          this.isInterrupted = false
+          return 'Execution paused by user'
+        }
       }
 
       // 调用 AIGC API

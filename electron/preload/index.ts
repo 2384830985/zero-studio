@@ -81,6 +81,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     search: (params: { query: string; engine: string }) =>
       ipcRenderer.invoke('web-search', params),
   },
+
+  // 文件系统 API
+  fs: {
+    selectDirectory: () => ipcRenderer.invoke('fs-select-directory'),
+    checkDirectoryPermissions: (path: string) => ipcRenderer.invoke('fs-check-directory-permissions', path),
+    setWorkingDirectory: (path: string) => ipcRenderer.invoke('fs-set-working-directory', path),
+    getWorkingDirectory: () => ipcRenderer.invoke('fs-get-working-directory'),
+    readDirectory: (path: string) => ipcRenderer.invoke('fs-read-directory', path),
+  },
 })
 
 // --------- Preload scripts loading ---------

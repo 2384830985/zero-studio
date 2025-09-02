@@ -154,13 +154,8 @@
               >
                 <LinkOutlined style="font-size: 16px;" />
               </div>
-              <div
-                class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-blue-500 transition-colors duration-200"
-                title="网络搜索"
-                @click="$emit('show-web-search')"
-              >
-                <GlobalOutlined style="font-size: 16px;" />
-              </div>
+              <!-- 网络搜索选择器 -->
+              <WebSearchSelector />
               <div
                 class="w-5 h-5 flex items-center justify-center text-gray-400 cursor-pointer hover:text-purple-500 transition-colors duration-200"
                 title="显示搜索结果"
@@ -171,14 +166,39 @@
             </div>
             <!-- 知识库选择器 -->
             <div class="flex items-center">
-              <KnowledgeBaseSelector @knowledge-base-changed="handleKnowledgeBaseChanged" />
+              <KnowledgeBaseSelector />
             </div>
             <!-- 执行环境组件 -->
             <div class="flex items-center">
               <ExecutionEnvironment />
             </div>
+            <!-- 目录管理组件 -->
+            <div class="flex items-center">
+              <DirectoryManager />
+            </div>
           </div>
           <div class="flex items-center gap-2">
+            <!-- 优化输入内容按钮 -->
+            <StarOutlined
+              v-if="inputMessage.trim()"
+              :disabled="!isConnected || isSending"
+              @click="handleOptimizeInput"
+            />
+            <!-- 中断 ReAct 操作按钮 -->
+            <!-- v-if="isSending" -->
+            <a-button
+              v-if="isSending"
+              size="small"
+              type="text"
+              danger
+              title="中断当前操作"
+              @click="handleInterruptReAct"
+            >
+              <template #icon>
+                <StopOutlined />
+              </template>
+              中断
+            </a-button>
             <a-button
               size="small"
               :disabled="messages.length === 0"
@@ -205,20 +225,23 @@
 </template>
 
 <script setup lang="ts">
-import {defineEmits, defineProps, nextTick, ref} from 'vue'
+import {computed, defineEmits, defineProps, nextTick, ref} from 'vue'
 import {Modal} from 'ant-design-vue'
 import {
   ArrowUpOutlined,
-  GlobalOutlined,
   LinkOutlined,
   LoadingOutlined,
   PaperClipOutlined,
   RobotOutlined,
   SearchOutlined,
+  StarOutlined,
+  StopOutlined,
 } from '@ant-design/icons-vue'
+import DirectoryManager from '@/components/common/DirectoryManager.vue'
 import ExecutionEnvironment from '@/components/common/ExecutionEnvironment.vue'
 import KnowledgeBaseSelector from '@/components/common/KnowledgeBaseSelector.vue'
 import UserInputRequest from '@/components/common/UserInputRequest.vue'
+import WebSearchSelector from '@/components/common/WebSearchSelector.vue'
 import MCPToolDisplay from './MCPToolDisplay.vue'
 import type {MCPMessage} from '../chat.type'
 import MarkdownIt from 'markdown-it'
@@ -226,6 +249,8 @@ import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import mermaid from 'mermaid'
 import {CommunicationRole, Exhibition} from '@/views/chat/constant'
+import { interruptRequestApi, optimizationPromptApi} from '@/api/chatApi'
+import {useChatStore} from '@/store'
 
 // Props 定义
 interface Props {
@@ -237,6 +262,9 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const chatStore = useChatStore()
+
+const selectedModel = computed(() => chatStore.selectedModel)
 
 // Emits 定义
 const emit = defineEmits<{
@@ -353,7 +381,9 @@ const handleSendMessage = () => {
 // 处理键盘事件
 const handleKeyDown = (event: KeyboardEvent) => {
   const isEnterPressed = event.key === 'Enter'
-  if (isEnterPressed && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+  // 检查是否正在进行输入法组合（如拼音输入）
+  // isComposing 为 true 表示正在进行输入法组合，此时不应该触发发送
+  if (isEnterPressed && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.isComposing) {
     event.preventDefault()
 
     // 直接从事件目标获取当前输入值，避免响应式延迟问题
@@ -373,11 +403,32 @@ const handleKeyDown = (event: KeyboardEvent) => {
   }
 }
 
-// 处理知识库变更
-const handleKnowledgeBaseChanged = (kb: any) => {
-  console.log('知识库已变更:', kb)
-  // 这里可以添加知识库变更后的处理逻辑
-  // 比如更新聊天上下文、显示提示信息等
+// 处理优化输入内容
+const handleOptimizeInput = async () => {
+  if (!inputMessage.value.trim()) {
+    return
+  }
+
+  const res = await optimizationPromptApi({
+    content: inputMessage.value.trim(),
+    metadata: {
+      model: selectedModel.value?.model?.name || '',
+      service: {
+        id: selectedModel.value?.service.id,
+        name: selectedModel.value?.service.name,
+        apiUrl: selectedModel.value?.service.apiUrl,
+        apiKey: selectedModel.value?.service.apiKey,
+      },
+    },
+  })
+
+  // 清空输入框
+  inputMessage.value = res.content
+}
+
+// 处理中断 ReAct 操作
+const handleInterruptReAct = () => {
+  interruptRequestApi()
 }
 
 // 处理清空对话

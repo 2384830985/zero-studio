@@ -1,191 +1,104 @@
-import {BrowserWindow, ipcMain, shell} from 'electron'
-import {getBinaryPath, isBinaryExists, runInstallScript} from './utils/process'
-import cp from 'child_process'
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { performWebSearch } from './utils/webSearch'
-import {IpcChannel} from './IpcChannel'
-import {Chat} from './server/routes/chat'
-import {AIGCService} from './server/services/AIGCService'
-import {MCPServerTools} from './server/routes/MCPServerTools'
+/**
+ * IPC (Inter-Process Communication) 主处理器
+ * 负责注册和管理主进程与渲染进程之间的所有通信通道
+ *
+ * 重构后的架构：
+ * - 使用路由管理器统一管理所有 IPC 路由
+ * - 将不同功能模块拆分到独立的路由文件中
+ * - 提高代码的可维护性和可扩展性
+ *
+ * 功能模块：
+ * - 聊天系统 (Chat System)
+ * - MCP 服务器连接 (MCP Server Connection)
+ * - LanceDB 向量数据库 (Vector Database)
+ * - 执行环境管理 (Runtime Environment)
+ * - 网络搜索 (Web Search)
+ * - 窗口管理 (Window Management)
+ * - 开发调试工具 (Development Tools)
+ */
 
-// 在 ES 模块中正确获取 __dirname
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const preload = path.join(__dirname, '../preload/index.mjs')
+import { BrowserWindow } from 'electron'
+import { AIGCService } from './server/services/AIGCService'
+import { IpcRouteManager } from './server/routes/IpcRouteManager'
+import { ChatIpcRoutes } from './server/routes/chatIpcRoutes'
+import { McpIpcRoutes } from './server/routes/mcpIpcRoutes'
+import { VectorDBIpcRoutes } from './server/routes/vectorDBIpcRoutes'
+import { RuntimeIpcRoutes } from './server/routes/runtimeIpcRoutes'
+import { WebSearchIpcRoutes } from './server/routes/webSearchIpcRoutes'
+import { WindowIpcRoutes } from './server/routes/windowIpcRoutes'
+import { DebugIpcRoutes } from './server/routes/debugIpcRoutes'
+import { DatabaseIpcRoutes } from './server/routes/databaseIpcRoutes'
+import { FileSystemIpcRoutes } from './server/routes/fileSystemIpcRoutes'
 
-// 避免循环依赖，直接定义路径
-const APP_ROOT = path.join(__dirname, '../..')
-const RENDERER_DIST = path.join(APP_ROOT, 'dist')
-const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
-const indexHtml = path.join(RENDERER_DIST, 'index.html')
+// ==================== 服务实例 ====================
+/** AIGC 服务实例 - 用于 AI 生成内容 */
 const aigcService = new AIGCService()
 
+/**
+ * 注册所有 IPC 处理器
+ * @param mainWindow 主窗口实例
+ * @param app Electron 应用实例
+ */
 export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
-  const chat = new Chat(mainWindow, aigcService)
+  // ==================== 初始化路由管理器 ====================
+  const routeManager = new IpcRouteManager(mainWindow)
 
-  // New window example arg: new windows url
-  ipcMain.handle('open-win', (_, arg) => {
-    const childWindow = new BrowserWindow({
-      webPreferences: {
-        preload,
-        nodeIntegration: true,
-        contextIsolation: false,
-      },
-    })
+  // ==================== 注册各功能模块路由 ====================
 
-    if (VITE_DEV_SERVER_URL) {
-      childWindow.loadURL(`${VITE_DEV_SERVER_URL}#${arg}`)
-    } else {
-      childWindow.loadFile(indexHtml, { hash: arg })
-    }
-  })
-  // 注册 mcp 连接
-  ipcMain.handle(IpcChannel.CONNECT_MCP, MCPServerTools.handleConnectMCPSend)
-  // chat send
-  ipcMain.handle(IpcChannel.CHAT_SEND, chat.handleChatSend.bind(chat))
-  // chat ReAct
-  ipcMain.handle(IpcChannel.CHAT_REACT, chat.handleChatReactSend.bind(chat))
-  // chat Plan 计划模式
-  ipcMain.handle(IpcChannel.CHAT_PLAN, chat.handleChatPlanSend.bind(chat))
+  // 聊天系统路由
+  const chatRoutes = new ChatIpcRoutes(aigcService)
+  routeManager.addRoute(chatRoutes)
 
-  // 执行环境管理相关的 IPC 处理程序
+  // MCP 连接路由
+  const mcpRoutes = new McpIpcRoutes()
+  routeManager.addRoute(mcpRoutes)
 
-  // 运行安装脚本
-  ipcMain.handle('run-install-script', async (_, scriptName: string) => {
-    try {
-      console.log(`[IPC] Running install script: ${scriptName}`)
-      await runInstallScript(scriptName)
-      console.log(`[IPC] Install script completed: ${scriptName}`)
-      return { success: true }
-    } catch (error) {
-      console.error(`[IPC] Install script failed: ${scriptName}`, error)
-      throw error
-    }
-  })
+  // LanceDB 向量数据库路由
+  const vectorDBRoutes = new VectorDBIpcRoutes(mainWindow)
+  routeManager.addRoute(vectorDBRoutes)
 
-  // 检查二进制文件是否存在
-  ipcMain.handle('check-binary-exists', async (_, binaryName: string) => {
-    try {
-      const exists = await isBinaryExists(binaryName)
-      console.log(`[IPC] Binary ${binaryName} exists: ${exists}`)
-      return exists
-    } catch (error) {
-      console.error(`[IPC] Error checking binary ${binaryName}:`, error)
-      return false
-    }
-  })
+  // 执行环境管理路由
+  const runtimeRoutes = new RuntimeIpcRoutes()
+  routeManager.addRoute(runtimeRoutes)
 
-  // 获取二进制文件版本
-  ipcMain.handle('get-binary-version', async (_, binaryName: string) => {
-    try {
-      const binaryPath = await getBinaryPath(binaryName)
-      let version = 'unknown'
+  // 网络搜索路由
+  const webSearchRoutes = new WebSearchIpcRoutes()
+  routeManager.addRoute(webSearchRoutes)
 
-      if (binaryName === 'bun') {
-        const result = cp.spawnSync(binaryPath, ['--version'], { encoding: 'utf8' })
-        version = result.stdout?.trim()
-      } else if (binaryName === 'uv') {
-        const result = cp.spawnSync(binaryPath, ['--version'], { encoding: 'utf8' })
-        version = result.stdout?.trim().replace('uv ', '')
-      }
+  // 窗口管理路由
+  const windowRoutes = new WindowIpcRoutes()
+  routeManager.addRoute(windowRoutes)
 
-      console.log(`[IPC] Binary ${binaryName} version: ${version}`)
-      return version
-    } catch (error) {
-      console.error(`[IPC] Error getting version for ${binaryName}:`, error)
-      return 'unknown'
-    }
-  })
+  // 开发调试工具路由
+  const debugRoutes = new DebugIpcRoutes(app)
+  routeManager.addRoute(debugRoutes)
 
-  // 设置默认运行时
-  ipcMain.handle('set-default-runtime', async (_, runtime: string) => {
-    try {
-      console.log(`[IPC] Setting default runtime to: ${runtime}`)
-      // 这里可以保存到配置文件或环境变量中
-      // 暂时只是记录日志
-      return { success: true, runtime }
-    } catch (error) {
-      console.error('[IPC] Error setting default runtime:', error)
-      throw error
-    }
-  })
+  // 数据库路由
+  const databaseRoutes = new DatabaseIpcRoutes()
+  routeManager.addRoute(databaseRoutes)
 
-  // 打开 bin 目录
-  ipcMain.handle('open-bin-directory', async () => {
-    try {
-      const binDir = await getBinaryPath()
-      console.log(`[IPC] Opening bin directory: ${binDir}`)
+  // 文件系统路由
+  const fileSystemRoutes = new FileSystemIpcRoutes()
+  routeManager.addRoute(fileSystemRoutes)
 
-      // 确保目录存在
-      if (!fs.existsSync(binDir)) {
-        fs.mkdirSync(binDir, { recursive: true })
-      }
+  // ==================== 注册所有路由 ====================
+  routeManager.registerAll()
 
-      await shell.openPath(binDir)
-      return { success: true }
-    } catch (error) {
-      console.error('[IPC] Error opening bin directory:', error)
-      throw error
-    }
-  })
+  console.log('[IPC] All IPC routes registered successfully')
 
-  // 网络搜索相关的 IPC 处理器
-  ipcMain.handle('web-search', async (_, searchParams: { query: string; engine: string }) => {
-    try {
-      console.log(`[IPC] Performing web search: ${searchParams.query} using ${searchParams.engine}`)
-
-      const searchResult = await performWebSearch(searchParams.query, searchParams.engine)
-      console.log(`[IPC] Web search completed for: ${searchParams.query}`)
-
-      return {
-        success: true,
-        query: searchParams.query,
-        engine: searchParams.engine,
-        results: searchResult,
-      }
-    } catch (error) {
-      console.error('[IPC] Web search failed:', error)
-      throw error
-    }
-  })
-
-  // --------- Debug helpers for development ---------
-  if (process.env.NODE_ENV === 'development') {
-    // 处理来自渲染进程的调试日志
-    ipcMain.on('debug-log', (_event, ...args) => {
-      console.log('[Renderer Debug]:', ...args)
-    })
-
-    // 处理来自渲染进程的错误报告
-    ipcMain.on('debug-error', (_event, message, stack) => {
-      console.error('[Renderer Error]:', message)
-      if (stack) {
-        console.error('Stack trace:', stack)
-      }
-    })
-
-    // 添加一些有用的调试 IPC 处理器
-    ipcMain.handle('get-app-info', () => {
-      return {
-        version: app.getVersion(),
-        name: app.getName(),
-        path: app.getAppPath(),
-        userData: app.getPath('userData'),
-        temp: app.getPath('temp'),
-        desktop: app.getPath('desktop'),
-        documents: app.getPath('documents'),
-        downloads: app.getPath('downloads'),
-      }
-    })
-
-    ipcMain.handle('get-system-info', () => {
-      return {
-        platform: process.platform,
-        arch: process.arch,
-        versions: process.versions,
-        env: process.env.NODE_ENV,
-      }
-    })
+  // ==================== 清理函数 ====================
+  /**
+   * 清理所有 IPC 路由
+   * 在应用关闭时调用
+   */
+  const cleanup = () => {
+    routeManager.cleanup()
+    console.log('[IPC] All IPC routes cleaned up')
   }
+
+  // 监听应用关闭事件
+  app.on('before-quit', cleanup)
+  app.on('window-all-closed', cleanup)
+
+  return { cleanup }
 }

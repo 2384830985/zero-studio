@@ -487,6 +487,9 @@ Final Answer: [对用户问题的完整回答]
 - 每次只能选择一种格式
 - 在回答时请参考历史对话记录中的上下文信息
 
+【严格遵守】
+- 当出现终止报错信息 “Execution paused by use”，直接返回当前结果
+
 Question: {input}
 {agent_scratchpad}`,
     })

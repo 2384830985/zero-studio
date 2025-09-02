@@ -1,6 +1,16 @@
 import { ChatOpenAI } from '@langchain/openai'
-// import { ChatAlibabaTongyi } from '@langchain/community/chat_models/alibaba_tongyi'
 
+// import { ChatAlibabaTongyi } from '@langchain/community/chat_models/alibaba_tongyi'
+export interface KnowledgeBase {
+  id: number
+  title: string
+  introduction: string
+  articleIds: any[]
+  status: number
+  documentCount: number
+  createdAt: number
+  updatedAt: number
+}
 export interface IMetadata {
   model: string
   setting: {
@@ -14,7 +24,9 @@ export interface IMetadata {
     name: string,
     apiUrl: string
     apiKey: string
-  }
+  },
+  searchEngine: string
+  knowledgeBase: KnowledgeBase
 }
 
 const ModelUir = {

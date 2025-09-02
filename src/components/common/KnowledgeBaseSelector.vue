@@ -8,7 +8,9 @@
       :class="{ 'text-blue-500': selectedKnowledgeBase }"
       title="选择知识库"
     >
-      <BookOutlined style="font-size: 16px;" />
+      <BookOutlined
+        :style="{ fontSize: '16px', color: selectedKnowledgeBase ? 'rgb(59 130 246 / var(--tw-bg-opacity, 1))' : '' }"
+      />
     </div>
     <template #overlay>
       <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[280px]">
@@ -62,15 +64,15 @@
             </div>
             <div class="flex-1">
               <div class="text-sm font-medium">
-                {{ kb.name }}
+                {{ kb.title }}
               </div>
               <div class="text-xs text-gray-500">
-                {{ kb.documentCount }} 个文档
+                {{ kb.articleIds.length }} 个文档
               </div>
             </div>
             <div class="flex items-center">
               <a-tag
-                v-if="kb.status === 'active'"
+                v-if="kb.status"
                 color="green"
                 size="small"
                 class="mr-2"
@@ -108,40 +110,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   BookOutlined,
   CloseOutlined,
   CheckOutlined,
 } from '@ant-design/icons-vue'
-import { knowledgeApi } from '@/api/knowledge'
 import type { KnowledgeBase } from '@/types/knowledge'
+import {listArticles} from '@/api/database'
+import { message } from 'ant-design-vue'
+import { useChatStore } from '@/store'
 
-// Props 和 Emits
-const emit = defineEmits<{
-  'knowledge-base-changed': [kb: KnowledgeBase | null]
-}>()
+const chatStore = useChatStore()
 
 // 响应式数据
 const router = useRouter()
 const knowledgeBases = ref<KnowledgeBase[]>([])
-const selectedKnowledgeBase = ref<KnowledgeBase | null>(null)
+const selectedKnowledgeBase = computed(() => {
+  return chatStore.getKnowledgeBase
+})
 
 // 加载知识库列表
 const loadKnowledgeBases = async () => {
   try {
-    // 只加载启用的知识库
-    knowledgeBases.value = await knowledgeApi.getKnowledgeBases({ status: 'active' })
+    const result = await listArticles({ status: 1 })
+    if (result.success) {
+      knowledgeBases.value = result?.data?.map(item => {
+        try {
+          item.articleIds = JSON.parse(item.articleIds)
+        } catch (e) {
+          item.articleIds = []
+        }
+        return item
+      }) || []
+      console.log('文章列表加载成功:', knowledgeBases.value)
+    } else {
+      message.error('加载文章列表失败: ' + result.error)
+    }
   } catch (error) {
-    console.error('加载知识库列表失败:', error)
+    console.error('加载文章列表失败:', error)
+    message.error('加载文章列表失败')
   }
 }
 
 // 选择知识库
-const selectKnowledgeBase = (kb: KnowledgeBase | null) => {
-  selectedKnowledgeBase.value = kb
-  emit('knowledge-base-changed', kb)
+const selectKnowledgeBase = (kb: KnowledgeBase) => {
+  chatStore.setKnowledgeBase(kb)
 }
 
 // 跳转到知识库管理页面
@@ -154,10 +169,6 @@ onMounted(() => {
   loadKnowledgeBases()
 })
 
-// 暴露选中的知识库
-defineExpose({
-  selectedKnowledgeBase,
-})
 </script>
 
 <style scoped>

@@ -1,6 +1,7 @@
 import {defineStore} from 'pinia'
 import type {Conversation, MCPMessage, ModelInfo, ModelService} from '@/views/chat/chat.type.ts'
 import {CommunicationRole} from '@/views/chat/constant'
+import type {KnowledgeBase} from '@/types/knowledge.ts'
 
 export enum USE_PLAN_MODE {
   // 问答模式
@@ -39,7 +40,11 @@ interface IIseChatStore {
     model: ModelInfo
   },
   // 助手设置
-  assistantSettings: AssistantSettings
+  assistantSettings: AssistantSettings,
+  // 使用的文章
+  knowledgeBase?: KnowledgeBase
+  // 搜索引擎
+  searchEngine: string
 }
 
 const UsePlanModeList: IUsePlanMode[] = [
@@ -79,6 +84,8 @@ export const useChatStore = defineStore('chat', {
         streamOutput: true,
         maxTokens: 2000,
       },
+      knowledgeBase: undefined,
+      searchEngine: 'none',
     }
   },
   getters: {
@@ -106,8 +113,18 @@ export const useChatStore = defineStore('chat', {
         .filter(Boolean)
         .sort((a, b) => b.lastActivity - a.lastActivity)
     },
+    getKnowledgeBase: (state) => state.knowledgeBase,
+    getSearchEngine: (state) => state.searchEngine,
   },
   actions: {
+    // 设置知识库
+    setKnowledgeBase (knowledgeBase: KnowledgeBase) {
+      this.knowledgeBase = knowledgeBase
+    },
+    // 设置搜索引擎
+    setSearchEngine (searchEngine: string) {
+      this.searchEngine = searchEngine
+    },
     selectUsePlanMode (value: USE_PLAN_MODE){
       this.usePlanMode = value
     },

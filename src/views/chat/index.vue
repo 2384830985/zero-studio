@@ -1,5 +1,6 @@
 <template>
   <div class="h-full flex flex-col bg-gray-50">
+    <!--    <DatabaseTest/>-->
     <!-- 顶部状态栏 -->
     <div class="bg-white border-b border-gray-200 px-6 py-2">
       <div class="flex items-center justify-between">
@@ -90,7 +91,6 @@
         :is-sending="isSending"
         @send-message="handleSendMessage"
         @clear-conversation="clearCurrentConversation"
-        @show-web-search="showWebSearchModal = true"
         @show-search-results="handleShowSearchResults"
       />
 
@@ -103,12 +103,6 @@
         @clear-results="clearSearchResults"
       />
     </div>
-
-    <!-- 网络搜索模态框 -->
-    <WebSearchModal
-      v-model="showWebSearchModal"
-      @search-result="handleSearchResult"
-    />
   </div>
 </template>
 
@@ -117,7 +111,6 @@ import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { message as antMessage } from 'ant-design-vue'
 import { USE_PLAN_MODE, useChatStore, useRoleStore } from '@/store'
 import type { MCPMessage, MCPServerStats } from './chat.type'
-import type { SearchResult } from '@/types/webSearch'
 import { ConnectReActApi, PostChatSendApi, PostPlanCreateApi } from '@/api/chatApi'
 import ChatModel from '@/views/chat/components/chatModel.vue'
 import ChatMcp from '@/views/chat/components/chatMcp.vue'
@@ -125,7 +118,6 @@ import ChatModelServer from '@/views/chat/components/chatModelServer.vue'
 import ChatRoleSelector from '@/views/chat/components/ChatRoleSelector.vue'
 import ChatSidebar from '@/views/chat/components/ChatSidebar.vue'
 import ChatArea from '@/views/chat/components/ChatArea.vue'
-import WebSearchModal from '@/views/chat/components/WebSearchModal.vue'
 import SearchResultsPanel from '@/views/chat/components/SearchResultsPanel.vue'
 import { CommunicationRole } from '@/views/chat/constant'
 
@@ -145,7 +137,6 @@ const isSending = ref(false)
 const conversations = computed(() => chatStore.sortedConversations)
 const serverStats = ref<MCPServerStats | null>(null)
 const showStats = ref(false)
-const showWebSearchModal = ref(false)
 const showSearchResults = ref(false)
 const searchResults = ref<any[]>([])
 
@@ -259,6 +250,8 @@ const handleSendMessage = async (content: string) => {
           apiUrl: selectedModel.value.service.apiUrl,
           apiKey: selectedModel.value.service.apiKey,
         },
+        knowledgeBase: chatStore.getKnowledgeBase,
+        searchEngine: chatStore.getSearchEngine,
       },
     })
 
@@ -318,27 +311,6 @@ const clearCurrentConversation = async () => {
     console.error('[MCP Chat] Failed to clear conversation:', error)
     antMessage.error('清空对话失败')
   }
-}
-
-// 处理网络搜索结果
-const handleSearchResult = (result: SearchResult) => {
-  // 将搜索结果添加到搜索结果列表
-  searchResults.value.push({
-    id: Date.now().toString(),
-    type: 'web',
-    title: result.title,
-    snippet: result.snippet,
-    url: result.url,
-    source: result.url,
-    metadata: {
-      publishTime: new Date().toISOString(),
-    },
-  })
-
-  // 显示搜索结果面板
-  showSearchResults.value = true
-
-  console.log('Search result:', result)
 }
 
 // 处理搜索结果点击

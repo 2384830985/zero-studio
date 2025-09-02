@@ -1,9 +1,10 @@
 // 知识库接口定义
 export interface KnowledgeBase {
-  id: string
-  name: string
-  description: string
-  status: 'active' | 'inactive'
+  id: number
+  title: string
+  introduction: string
+  articleIds: Document[]
+  status: number
   documentCount: number
   createdAt: number
   updatedAt: number
@@ -22,8 +23,8 @@ export interface Document {
 // 知识库创建/更新表单
 export interface KnowledgeBaseForm {
   name: string
-  description: string
-  status: boolean
+  introduction: string
+  status: number
 }
 
 // 知识库查询参数

@@ -2,8 +2,8 @@ import { McpServer } from '../../../mcp/mcp-server'
 import {DynamicTool} from '@langchain/core/tools'
 
 export abstract class ToolsHandler {
-  protected tools
-  protected toolsPrompt
+  protected tools: any
+  protected toolsPrompt: any
 
   initToolWrappers() {
     const { tools, toolsPrompt } = this.createToolWrappers()

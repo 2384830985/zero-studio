@@ -19,3 +19,11 @@ export const ConnectReActApi = async (params: IChatParams) => {
 export const InputResponseApi = async (params: { content: string, requestId: string }) => {
   return ipcRenderer(IpcChannel.USER_INPUT_RESPONSE, params)
 }
+
+export const optimizationPromptApi = async (params: any) => {
+  return ipcRenderer(IpcChannel.OPTIMIZATION_PROMPT, params)
+}
+
+export const interruptRequestApi = async () => {
+  return ipcRenderer(IpcChannel.INTERRUPT_REQUEST, {})
+}

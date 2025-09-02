@@ -12,7 +12,9 @@
     "outDir": "../dist-electron",
     "rootDir": ".",
     "types": ["node"],
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": [
     "**/*.ts"

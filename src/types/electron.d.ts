@@ -33,6 +33,32 @@ export interface IElectronAPI {
     log: (...args: any[]) => void
     reportError: (error: Error) => void
   }
+
+  // 文件系统相关 API
+  fs: {
+    selectDirectory: () => Promise<{
+      canceled: boolean
+      filePaths: string[]
+    }>
+    checkDirectoryPermissions: (path: string) => Promise<boolean>
+    setWorkingDirectory: (path: string) => Promise<{
+      success: boolean
+      path: string
+      message: string
+    }>
+    getWorkingDirectory: () => Promise<{
+      success: boolean
+      path: string
+    }>
+    readDirectory: (path: string) => Promise<Array<{
+      name: string
+      path: string
+      type: 'directory' | 'file'
+      size?: number
+      modified: Date
+      created: Date
+    }>>
+  }
 }
 
 export interface IElectronIPC {

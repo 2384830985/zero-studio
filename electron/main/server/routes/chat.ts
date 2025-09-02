@@ -46,4 +46,37 @@ export class Chat {
   async handleChatSend(_: any, object: any) {
     return this.standardHandler.handleChatSend(_, object)
   }
+
+  /**
+   * 优化 prompt
+   * @param _
+   * @param object
+   * @private
+   */
+  async handleOptimizationPrompt(_: any, object: any) {
+    return this.standardHandler.handleOptimizationPrompt(_, object)
+  }
+
+  /**
+   * 中断请求
+   * @private
+   */
+  async handleInterruptRequest() {
+    console.log('[Chat] 收到中断请求')
+
+    // 中断所有正在进行的聊天处理器
+    try {
+      await Promise.all([
+        this.reActHandler.interrupt(),
+        this.planHandler.interrupt(),
+        this.standardHandler.interrupt(),
+      ])
+
+      console.log('[Chat] 所有聊天处理器已中断')
+      return { success: true, message: '中断成功' }
+    } catch (error: any) {
+      console.error('[Chat] 中断请求失败:', error)
+      return { success: false, message: '中断失败', error: error?.message || '未知错误' }
+    }
+  }
 }

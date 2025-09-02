@@ -5,6 +5,7 @@ import os from 'node:os'
 import fs from 'node:fs'
 import { log } from 'node:console'
 import { registerIpc } from './ipc'
+import { getDatabaseService } from './server/services/database/DatabaseService'
 import dotenv from 'dotenv'
 
 // 加载环境变量文件（根据环境选择不同文件）
@@ -154,6 +155,15 @@ async function createWindow() {
   })
 
   registerIpc(win, app)
+
+  // 初始化数据库服务
+  try {
+    const databaseService = getDatabaseService()
+    await databaseService.initialize()
+    console.log('✅ Database service initialized successfully')
+  } catch (error) {
+    console.error('❌ Failed to initialize database service:', error)
+  }
 }
 // 注册自定义协议以处理本地文件
 app.whenReady().then(async () => {

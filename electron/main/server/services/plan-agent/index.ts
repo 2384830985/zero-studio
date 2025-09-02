@@ -33,12 +33,12 @@ const PlanExecuteState = Annotation.Root({
 })
 
 export class PlanAgent extends ToolsHandler {
-  private llm
+  private llm: any
   private communication: Communication
-  public workFlow
-  private replanner
-  private agentExecutor
-  private planObject
+  public workFlow: any
+  private replanner: any
+  private agentExecutor: any
+  private planObject: any
   public memory: IExhibitionCon[] = []
   private userInteractionTools: DynamicStructuredTool[] = []
   private pendingUserInputs = new Map<string, (response: string) => void>() // 管理待处理的用户输入请求
@@ -262,7 +262,7 @@ export class PlanAgent extends ToolsHandler {
 
     console.log('[执行结果]', JSON.stringify(messages, null, 2))
 
-    messages.forEach((message, index) => {
+    messages.forEach((message: any, index: number) => {
       // tool 结果不进行操作
       if (message?.tool_call_id) {
         return

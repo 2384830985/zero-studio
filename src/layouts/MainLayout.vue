@@ -131,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import {
   UserOutlined,
   MessageOutlined,
@@ -143,4 +144,10 @@ import {
   SettingOutlined,
   AppstoreOutlined,
 } from '@ant-design/icons-vue'
+import {ipcLancedbInitializeApi} from '@/api/knowledge'
+
+onMounted(async () => {
+  const table = await ipcLancedbInitializeApi()
+  console.log('ipcLancedbListTablesApi table', table)
+})
 </script>

@@ -8,59 +8,40 @@
             知识库管理
           </h1>
         </div>
-        <a-button
-          type="primary"
-          size="small"
-          class="flex items-center justify-center"
-          @click="showCreateModal = true"
-        >
-          <template #icon>
-            <PlusOutlined class="flex items-center justify-center" />
-          </template>
-          创建知识库
-        </a-button>
+        <div class="flex items-center gap-2">
+          <a-button
+            type="primary"
+            size="small"
+            class="flex items-center justify-center"
+            @click="showCreateModal = true"
+          >
+            <template #icon>
+              <PlusOutlined class="flex items-center justify-center" />
+            </template>
+            创建知识库
+          </a-button>
+        </div>
       </div>
     </div>
 
     <!-- 搜索和筛选 -->
-    <div class="bg-white border-b border-gray-200 px-4 py-3">
-      <div class="flex items-center gap-3">
-        <a-input-search
-          v-model:value="searchKeyword"
-          placeholder="搜索知识库名称或描述..."
-          size="small"
-          class="flex-1 max-w-sm"
-          @search="handleSearch"
-        />
-        <a-select
-          v-model:value="selectedStatus"
-          placeholder="选择状态"
-          size="small"
-          class="w-24"
-          allow-clear
-          @change="handleStatusChange"
-        >
-          <a-select-option value="active">
-            <div class="flex items-center gap-1">
-              <div class="w-2 h-2 bg-green-500 rounded-full" />
-              已启用
-            </div>
-          </a-select-option>
-          <a-select-option value="inactive">
-            <div class="flex items-center gap-1">
-              <div class="w-2 h-2 bg-gray-400 rounded-full" />
-              未启用
-            </div>
-          </a-select-option>
-        </a-select>
-      </div>
-    </div>
+    <!--    <div class="bg-white border-b border-gray-200 px-4 py-3">-->
+    <!--      <div class="flex items-center gap-3">-->
+    <!--        <a-input-search-->
+    <!--          v-model:value="searchKeyword"-->
+    <!--          placeholder="搜索知识库名称或描述..."-->
+    <!--          size="small"-->
+    <!--          class="flex-1 max-w-sm"-->
+    <!--          @search="handleSearch"-->
+    <!--        />-->
+    <!--      </div>-->
+    <!--    </div>-->
 
     <!-- 知识库列表 -->
     <div class="flex-1 overflow-y-auto p-4">
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         <div
-          v-for="kb in filteredKnowledgeBases"
+          v-for="kb in articles"
           :key="kb.id"
           class="group bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md hover:shadow-gray-100 transition-all duration-300 cursor-pointer relative overflow-hidden"
           :class="selectedKbId === kb.id
@@ -82,7 +63,7 @@
                   class="text-sm font-semibold truncate mb-0.5 leading-tight"
                   :class="selectedKbId === kb.id ? 'text-blue-900' : 'text-gray-900'"
                 >
-                  {{ kb.name }}
+                  {{ kb.title }}
                 </h3>
                 <span
                   class="text-xs font-medium px-1.5 py-0.5 rounded-full"
@@ -90,7 +71,7 @@
                     ? 'text-blue-700 bg-blue-100'
                     : 'text-gray-600 bg-gray-100'"
                 >
-                  {{ kb.documentCount }} 个文档
+                  {{ kb.articleIds.length }} 个文档
                 </span>
               </div>
             </div>
@@ -125,23 +106,12 @@
                     <FileTextOutlined />
                     管理文档
                   </a-menu-item>
-                  <a-menu-item
-                    key="toggle"
-                    class="rounded-md mx-1 my-1"
-                    @click="toggleKbEnabled(kb.id)"
-                  >
-                    <template #icon>
-                      <EyeOutlined v-if="kb.status === 'inactive'" />
-                      <EyeInvisibleOutlined v-else />
-                    </template>
-                    {{ kb.status === 'active' ? '禁用' : '启用' }}
-                  </a-menu-item>
                   <a-menu-divider class="mx-1" />
                   <a-menu-item
                     key="delete"
                     danger
                     class="rounded-md mx-1 my-1"
-                    @click="confirmDeleteKb(kb.id)"
+                    @click="confirmDeleteKb(kb)"
                   >
                     <DeleteOutlined />
                     删除
@@ -157,7 +127,7 @@
               class="text-xs leading-relaxed line-clamp-2 min-h-[2.5rem]"
               :class="selectedKbId === kb.id ? 'text-blue-700' : 'text-gray-600'"
             >
-              {{ kb.description || '暂无描述，点击编辑添加知识库描述信息...' }}
+              {{ kb.introduction || '暂无描述，点击编辑添加知识库描述信息...' }}
             </p>
           </div>
 
@@ -200,7 +170,7 @@
 
       <!-- 空状态 -->
       <div
-        v-if="filteredKnowledgeBases.length === 0"
+        v-if="articles.length === 0"
         class="text-center py-6"
       >
         <BookOutlined class="text-2xl text-gray-400 mb-2" />
@@ -208,10 +178,10 @@
           没有找到知识库
         </h3>
         <p class="text-xs text-gray-600 mb-3">
-          {{ searchKeyword || selectedStatus ? '尝试调整搜索条件' : '开始创建您的第一个知识库' }}
+          {{ searchKeyword ? '尝试调整搜索条件' : '开始创建您的第一个知识库' }}
         </p>
         <a-button
-          v-if="!searchKeyword && !selectedStatus"
+          v-if="!searchKeyword"
           type="primary"
           size="small"
           class="flex items-center justify-center"
@@ -238,13 +208,13 @@
           required
         >
           <a-input
-            v-model:value="kbForm.name"
+            v-model:value="kbForm.title"
             placeholder="请输入知识库名称"
           />
         </a-form-item>
         <a-form-item label="描述">
           <a-textarea
-            v-model:value="kbForm.description"
+            v-model:value="kbForm.introduction"
             placeholder="请输入知识库描述"
             :rows="3"
           />
@@ -253,6 +223,8 @@
           <a-switch
             v-model:checked="kbForm.status"
             checked-children="启用"
+            :checked-value="1"
+            :un-checked-value="0"
             un-checked-children="禁用"
           />
         </a-form-item>
@@ -269,11 +241,12 @@
       <div class="space-y-4">
         <div class="flex justify-between items-center">
           <h4 class="font-medium">
-            {{ selectedKb?.name }} - 文档列表
+            {{ selectedKb?.title }} - 文档列表
           </h4>
           <a-button
             type="primary"
             size="small"
+            @click="handleChange"
           >
             <template #icon>
               <UploadOutlined />
@@ -314,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import {
   PlusOutlined,
   BookOutlined,
@@ -323,50 +296,48 @@ import {
   DeleteOutlined,
   FileTextOutlined,
   UploadOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined,
 } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
-import { knowledgeApi, documentApi } from '@/api/knowledge'
+// import type { UploadChangeParam, UploadProps, Upload } from 'ant-design-vue'
 import type { KnowledgeBase, Document } from '@/types/knowledge'
+import {
+  ipcLancedbListTablesApi,
+  ipcLancedbCreateTablesApi,
+} from '@/api/knowledge'
+// 导入文章管理 API
+import {
+  createArticle,
+  listArticles,
+  updateArticle,
+  deleteArticle,
+} from '@/api/database/index'
 
-// 响应式数据
-const knowledgeBases = ref<KnowledgeBase[]>([])
 const showCreateModal = ref(false)
 const showDocumentModal = ref(false)
 const editingKb = ref<KnowledgeBase | null>(null)
 const selectedKb = ref<KnowledgeBase | null>(null)
-const selectedKbId = ref<string>('')
+const selectedKbId = ref<number>()
 const documents = ref<Document[]>([])
 const searchKeyword = ref('')
-const selectedStatus = ref<string>('')
+
+// 文章管理相关数据
+const articles = ref<any[]>([])
+
+/**
+ * 处理文件上传
+ */
+const handleChange = async () => {
+  // 调用文件上传 API
+  selectedKb.value && await ipcLancedbCreateTablesApi(selectedKb.value)
+  loadArticles()
+}
 
 // 表单数据
-const kbForm = reactive({
-  name: '',
-  description: '',
-  status: true,
-})
-
-// 计算属性 - 过滤后的知识库列表
-const filteredKnowledgeBases = computed(() => {
-  let result = [...knowledgeBases.value]
-
-  // 按状态筛选
-  if (selectedStatus.value) {
-    result = result.filter(kb => kb.status === selectedStatus.value)
-  }
-
-  // 按关键词搜索
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(kb =>
-      kb.name.toLowerCase().includes(keyword) ||
-      kb.description.toLowerCase().includes(keyword),
-    )
-  }
-
-  return result
+const kbForm = reactive<Partial<KnowledgeBase>>({
+  title: '',
+  introduction: '',
+  articleIds: [],
+  status: 0,
 })
 
 // 文档表格列定义
@@ -385,11 +356,6 @@ const documentColumns = [
     title: '大小',
     dataIndex: 'size',
     key: 'size',
-  },
-  {
-    title: '上传时间',
-    dataIndex: 'uploadedAt',
-    key: 'uploadedAt',
   },
   {
     title: '操作',
@@ -414,57 +380,41 @@ const formatTime = (timestamp: number) => {
   }
 }
 
-// 加载知识库列表
-const loadKnowledgeBases = async () => {
-  try {
-    knowledgeBases.value = await knowledgeApi.getKnowledgeBases()
-  } catch (error) {
-    console.error('加载知识库列表失败:', error)
-    message.error('加载知识库列表失败')
-  }
-}
-
 // 选择知识库
 const selectKnowledgeBase = (kb: KnowledgeBase) => {
   selectedKbId.value = kb.id
-  message.success(`已选择知识库: ${kb.name}`)
+  message.success(`已选择知识库: ${kb.title}`)
 }
 
 // 编辑知识库
 const editKnowledgeBase = (kb: KnowledgeBase) => {
   editingKb.value = kb
-  kbForm.name = kb.name
-  kbForm.description = kb.description
-  kbForm.status = kb.status === 'active'
+  kbForm.title = kb.title
+  kbForm.introduction = kb.introduction
+  kbForm.articleIds = kb.articleIds
+  kbForm.status = kb.status
   showCreateModal.value = true
 }
 
 // 确认删除知识库
-const confirmDeleteKb = (kbId: string) => {
-  const kb = knowledgeBases.value.find(item => item.id === kbId)
+const confirmDeleteKb = (kb: KnowledgeBase) => {
   Modal.confirm({
     title: '确认删除',
-    content: `确定要删除知识库"${kb?.name}"吗？此操作不可撤销。`,
+    content: `确定要删除知识库"${kb?.title}"吗？此操作不可撤销。`,
     okText: '删除',
     okType: 'danger',
     cancelText: '取消',
     onOk() {
-      deleteKnowledgeBase(kbId)
+      deleteKnowledgeBase(kb.id)
     },
   })
 }
 
 // 删除知识库
-const deleteKnowledgeBase = async (kbId: string) => {
+const deleteKnowledgeBase = async (kbId: number) => {
   try {
-    await knowledgeApi.deleteKnowledgeBase(kbId)
-    const index = knowledgeBases.value.findIndex(item => item.id === kbId)
-    if (index > -1) {
-      knowledgeBases.value.splice(index, 1)
-    }
-    if (selectedKbId.value === kbId) {
-      selectedKbId.value = ''
-    }
+    await deleteArticle(kbId)
+    loadArticles()
     message.success('知识库删除成功')
   } catch (error) {
     console.error('删除知识库失败:', error)
@@ -472,35 +422,12 @@ const deleteKnowledgeBase = async (kbId: string) => {
   }
 }
 
-// 切换知识库启用状态
-const toggleKbEnabled = async (kbId: string) => {
-  const kb = knowledgeBases.value.find(item => item.id === kbId)
-  if (!kb) {
-    return
-  }
-
-  try {
-    const newStatus = kb.status === 'active' ? 'inactive' : 'active'
-    await knowledgeApi.updateKnowledgeBase(kbId, {
-      name: kb.name,
-      description: kb.description,
-      status: newStatus === 'active',
-    })
-    kb.status = newStatus
-    kb.updatedAt = Date.now()
-    message.success(`知识库已${newStatus === 'active' ? '启用' : '禁用'}`)
-  } catch (error) {
-    console.error('更新知识库状态失败:', error)
-    message.error('更新知识库状态失败')
-  }
-}
-
 // 管理文档
 const manageDocuments = async (kb: KnowledgeBase) => {
   selectedKb.value = kb
   try {
-    documents.value = await documentApi.getDocuments(kb.id)
     showDocumentModal.value = true
+    documents.value = kb.articleIds
   } catch (error) {
     console.error('加载文档列表失败:', error)
     message.error('加载文档列表失败')
@@ -509,27 +436,43 @@ const manageDocuments = async (kb: KnowledgeBase) => {
 
 // 创建或更新知识库
 const handleCreateOrUpdate = async () => {
-  if (!kbForm.name.trim()) {
+  if (!kbForm.title.trim()) {
     message.error('请输入知识库名称')
     return
   }
 
   try {
     if (editingKb.value) {
-      // 更新
-      const updatedKb = await knowledgeApi.updateKnowledgeBase(editingKb.value.id, kbForm)
-      if (updatedKb) {
-        const index = knowledgeBases.value.findIndex(item => item.id === editingKb.value!.id)
-        if (index > -1) {
-          knowledgeBases.value[index] = updatedKb
-        }
+      // 创建
+      const updatedKb = await updateArticle({
+        title: kbForm.title,
+        introduction: kbForm.introduction,
+        status: Number(kbForm.status),
+        articleIds: JSON.stringify(kbForm.articleIds || []),
+        id: Number(editingKb.value.id),
+      })
+      if (updatedKb.success) {
+        message.success('知识库更新成功')
+        await loadArticles() // 重新加载文章列表
+        console.log('创建的文章:', updatedKb.data)
+      } else {
+        message.error('创建文章失败: ' + updatedKb.error)
       }
-      message.success('知识库更新成功')
     } else {
       // 创建
-      const newKb = await knowledgeApi.createKnowledgeBase(kbForm)
-      knowledgeBases.value.push(newKb)
-      message.success('知识库创建成功')
+      const result = await createArticle({
+        title: kbForm.title,
+        introduction: kbForm.introduction,
+        status: Number(kbForm.status),
+        articleIds: JSON.stringify([]),
+      })
+      if (result.success) {
+        message.success('文章创建成功')
+        await loadArticles() // 重新加载文章列表
+        console.log('创建的文章:', result.data)
+      } else {
+        message.error('创建文章失败: ' + result.error)
+      }
     }
     resetForm()
   } catch (error) {
@@ -542,24 +485,43 @@ const handleCreateOrUpdate = async () => {
 const resetForm = () => {
   showCreateModal.value = false
   editingKb.value = null
-  kbForm.name = ''
-  kbForm.description = ''
-  kbForm.status = true
+  kbForm.title = ''
+  kbForm.articleIds = []
+  kbForm.introduction = ''
+  kbForm.status = 0
 }
 
-// 搜索处理
-const handleSearch = (value: string) => {
-  searchKeyword.value = value
-}
+// ==================== 文章管理功能 ====================
 
-// 状态筛选处理
-const handleStatusChange = (value: string) => {
-  selectedStatus.value = value
+// 加载文章列表
+const loadArticles = async () => {
+  try {
+    const result = await listArticles()
+    if (result.success) {
+      articles.value = result?.data?.map(item => {
+        try {
+          item.articleIds = JSON.parse(item.articleIds)
+        } catch (e) {
+          item.articleIds = []
+        }
+        return item
+      }) || []
+      console.log('文章列表加载成功:', articles.value)
+    } else {
+      message.error('加载文章列表失败: ' + result.error)
+    }
+  } catch (error) {
+    console.error('加载文章列表失败:', error)
+    message.error('加载文章列表失败')
+  }
 }
 
 // 组件挂载时加载数据
-onMounted(() => {
-  loadKnowledgeBases()
+onMounted(async () => {
+  const data = await ipcLancedbListTablesApi()
+  console.log('ipcLancedbListTablesApi data', data)
+  // 加载文章列表
+  await loadArticles()
 })
 </script>
 

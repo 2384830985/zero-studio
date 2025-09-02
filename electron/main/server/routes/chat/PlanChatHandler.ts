@@ -7,6 +7,7 @@ import {ResponseBuilder} from '../../services'
 export class PlanChatHandler extends ChatHandler {
   private planAgent: PlanAgent
   private responseBuilder = new ResponseBuilder()
+  private currentAsyncIterator: AsyncIterator<any> | null = null
 
   constructor(win: BrowserWindow) {
     super(win)
@@ -18,6 +19,9 @@ export class PlanChatHandler extends ChatHandler {
    */
   async handleChatPlanSend(_: any, object: string) {
     try {
+      // 重置中断状态
+      this.resetInterruptState()
+
       console.log('handleChatPlanSend _', _)
       const { content, conversationId, metadata = {} } = JSON.parse(object)
 
@@ -62,7 +66,7 @@ export class PlanChatHandler extends ChatHandler {
     }
   }
 
-  async involve(inputs, config, sendStreaming) {
+  async involve(inputs: any, config: any, sendStreaming: any) {
     try {
       // 获取异步迭代器
       const asyncIterator = (await this.planAgent.workFlow.stream(inputs, config))[Symbol.asyncIterator]()
