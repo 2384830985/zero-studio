@@ -29,6 +29,14 @@ export class FileSystemIpcRoutes implements IIpcRoute {
           buttonLabel: '选择',
         })
 
+        // 验证目录存在
+        const stats = await fs.stat(result.filePaths[0])
+        if (!stats.isDirectory()) {
+          throw new Error('指定的路径不是一个目录')
+        }
+        // 设置工作目录
+        process.chdir(result.filePaths[0])
+
         return {
           canceled: result.canceled,
           filePaths: result.filePaths,
